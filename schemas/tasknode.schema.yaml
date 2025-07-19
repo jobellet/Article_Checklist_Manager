@@ -1,0 +1,23 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$title: "TaskNode"
+type: object
+properties:
+  item:
+    type: string
+    description: Label for the task.
+  done:
+    type: boolean
+    description: Flag indicating completion.
+    default: false
+  percent:
+    type: number
+    minimum: 0
+    maximum: 100
+    description: Override progress percentage for this task.
+  subtasks:
+    type: array
+    items:
+      $ref: "#"
+    description: Child tasks.
+required: [item]
+additionalProperties: false

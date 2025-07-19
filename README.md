@@ -76,6 +76,12 @@ Methods:
         - item: "Materials availability"
           done: false
 
+🔖 TaskNode Schema
+
+The YAML schema for the recursive `TaskNode` structure is defined in
+[`schemas/tasknode.schema.yaml`](schemas/tasknode.schema.yaml). It supports
+unlimited nesting via `subtasks`, includes a `done` flag for completion, and
+allows per-node progress overrides with the optional `percent` field.
 
 ⸻
 
