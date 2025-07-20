@@ -23,7 +23,7 @@ def save_project(project: ArticleProject, path: Path = Path('.')) -> None:
 def ensure_task(project: ArticleProject, path: str) -> TaskNode:
     parts = [p for p in path.split('/') if p]
     tasks = project.checklist.tasks
-    node = None
+    node: TaskNode | None = None
     for part in parts:
         for t in tasks:
             if t.item == part:
@@ -33,13 +33,14 @@ def ensure_task(project: ArticleProject, path: str) -> TaskNode:
             node = TaskNode(item=part)
             tasks.append(node)
         tasks = node.subtasks
+    assert node is not None
     return node
 
 
 def find_task(project: ArticleProject, path: str) -> TaskNode:
     parts = [p for p in path.split('/') if p]
     tasks = project.checklist.tasks
-    node = None
+    node: TaskNode | None = None
     for part in parts:
         for t in tasks:
             if t.item == part:
@@ -48,6 +49,7 @@ def find_task(project: ArticleProject, path: str) -> TaskNode:
                 break
         else:
             raise typer.BadParameter(f"Task path not found: {'/'.join(parts)}")
+    assert node is not None
     return node
 
 
