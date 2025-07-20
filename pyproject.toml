@@ -11,5 +11,9 @@ dependencies = [
     "PyYAML>=6.0",
 ]
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["acm*"]
+
 [project.scripts]
 acm = "acm.cli:app"
