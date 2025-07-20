@@ -1,5 +1,7 @@
 📝 Article Checklist Manager
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/<your-username>/Article_Checklist_Manager/blob/main/Colab_Tutorial.ipynb)
+
 An open-source tool that helps research teams track, from the top-level section down to the tiniest to-do, how close a manuscript is to being submission-ready.
 
 ⸻
@@ -47,10 +49,16 @@ An open-source tool that helps research teams track, from the top-level section 
 
 🔧 Quick Install (CLI Prototype)
 
-pip install article-checklist-manager   # coming soon on PyPI
+Clone the repository and install it locally until the PyPI release is available:
+
+```bash
+git clone https://github.com/<your-username>/Article_Checklist_Manager.git
+cd Article_Checklist_Manager
+pip install -e .
 acm init MyGreatPaper
 acm status
 acm check "Results/Fig 3/Statistical review" --percent 75
+```
 
 
 ⸻
