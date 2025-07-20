@@ -24,6 +24,25 @@ class TaskNode:
     def get_subtask(self, index: int) -> 'TaskNode':
         return self.subtasks[index]
 
+    def computed_percent(self) -> float:
+        """Return the effective progress percentage for this node."""
+        if self.done:
+            return 100.0
+        if self.percent is not None:
+            return float(self.percent)
+        if not self.subtasks:
+            return 0.0
+        return sum(s.computed_percent() for s in self.subtasks) / len(self.subtasks)
+
+    def to_progress_node(self) -> 'ProgressTaskNode':
+        """Convert to :class:`acm.progress.TaskNode` for rendering."""
+        from .progress import TaskNode as ProgressTaskNode
+
+        pct = 100 if self.done else self.percent
+        node = ProgressTaskNode(name=self.item, percent=pct)
+        node.children = [s.to_progress_node() for s in self.subtasks]
+        return node
+
     def to_dict(self) -> dict:
         data: dict[str, Any] = {'item': self.item}
         if self.done:
@@ -60,6 +79,11 @@ class Checklist:
 
     def get_task(self, index: int) -> TaskNode:
         return self.tasks[index]
+
+    def computed_percent(self) -> float:
+        if not self.tasks:
+            return 0.0
+        return sum(t.computed_percent() for t in self.tasks) / len(self.tasks)
 
     def to_dict(self) -> dict:
         return {'tasks': [t.to_dict() for t in self.tasks]}
@@ -98,6 +122,9 @@ class ArticleProject:
 
     def remove_task(self, index: int) -> None:
         self.checklist.remove_task(index)
+
+    def computed_percent(self) -> float:
+        return self.checklist.computed_percent()
 
     def to_dict(self) -> dict:
         return {'name': self.name, 'checklist': self.checklist.to_dict()}
