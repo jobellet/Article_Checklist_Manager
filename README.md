@@ -1,6 +1,6 @@
 📝 Article Checklist Manager
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/<your-username>/Article_Checklist_Manager/blob/main/Colab_Tutorial.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jobellet/Article_Checklist_Manager/blob/main/Colab_Tutorial.ipynb)
 
 An open-source tool that helps research teams track, from the top-level section down to the tiniest to-do, how close a manuscript is to being submission-ready.
 
@@ -52,7 +52,7 @@ An open-source tool that helps research teams track, from the top-level section 
 Clone the repository and install it locally until the PyPI release is available:
 
 ```bash
-git clone https://github.com/<your-username>/Article_Checklist_Manager.git
+git clone https://github.com/jobellet/Article_Checklist_Manager.git
 cd Article_Checklist_Manager
 pip install -e .
 acm init MyGreatPaper
