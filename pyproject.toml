@@ -6,7 +6,10 @@ build-backend = "setuptools.build_meta"
 name = "article-checklist-manager"
 version = "0.1.0"
 requires-python = ">=3.9"
-dependencies = ["typer>=0.9"]
+dependencies = [
+    "typer>=0.9",
+    "PyYAML>=6.0",
+]
 
 [project.scripts]
 acm = "acm.cli:app"
