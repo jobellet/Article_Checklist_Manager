@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Any
+from typing import List, Optional, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .progress import TaskNode as ProgressTaskNode
 import json
 import yaml
 
@@ -34,10 +37,8 @@ class TaskNode:
             return 0.0
         return sum(s.computed_percent() for s in self.subtasks) / len(self.subtasks)
 
-    def to_progress_node(self) -> 'ProgressTaskNode':
+    def to_progress_node(self) -> "ProgressTaskNode":
         """Convert to :class:`acm.progress.TaskNode` for rendering."""
-        from .progress import TaskNode as ProgressTaskNode
-
         pct = 100 if self.done else self.percent
         node = ProgressTaskNode(name=self.item, percent=pct)
         node.children = [s.to_progress_node() for s in self.subtasks]
