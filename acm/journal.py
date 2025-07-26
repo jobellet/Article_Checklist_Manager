@@ -31,7 +31,9 @@ def load_guidelines(path: Path | None = None) -> List[Guideline]:
     """Return all guidelines from ``journal_guidelines.json``."""
     file = path or GUIDELINES_FILE
     data = json.loads(file.read_text())
-    return [Guideline(**d) for d in data]
+    allowed = set(Guideline.__annotations__)
+    cleaned = [{k: v for k, v in d.items() if k in allowed} for d in data]
+    return [Guideline(**item) for item in cleaned]
 
 
 def find_guideline(journal: str, article_type: str | None = None) -> Guideline:
