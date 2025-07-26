@@ -141,5 +141,13 @@ def template(journal: str, article_type: str = typer.Option(None)):
     typer.echo(checklist.to_yaml())
 
 
+@app.command()
+def edit():
+    """Open the interactive manuscript editor."""
+    from .manuscript import cli_editor
+
+    cli_editor(Path('.'))
+
+
 if __name__ == "__main__":
     app()
