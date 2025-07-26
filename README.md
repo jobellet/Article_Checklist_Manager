@@ -92,6 +92,13 @@ The YAML schema for the recursive `TaskNode` structure is defined in
 unlimited nesting via `subtasks`, includes a `done` flag for completion, and
 allows per-node progress overrides with the optional `percent` field.
 
+📚 Guideline Utilities
+
+        •       `append_guideline.py` – append a new guideline entry to `journal_guidelines.json`
+        •       `validate_json.py` – verify that `journal_guidelines.json` is valid JSON
+
+See [`FORMAT.md`](FORMAT.md) for the guideline schema.
+
 ⸻
 
 🤝 Contributing
