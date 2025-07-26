@@ -178,5 +178,53 @@
     "structure": "During the revision stage, Neuron manuscripts should include the following sections: Title, Author list, Author affiliations and footnotes, Contact information, Summary (abstract), Keywords, Introduction, Results, Discussion, Resource availability, Acknowledgements, Author contributions, Declaration of interests, Declaration of generative AI and AI‑assisted technologies, Supplemental information titles and legends, Figure titles and legends, Tables, STAR Methods, Resource identification initiative and References. These components ensure that the manuscript is fully described and reproducible.",
     "other_requirements": "Authors must comply with Neuron’s policies covering professional behaviour, preprint servers, related manuscripts, submission verification, duplicate submissions, authorship, competing interests, the declaration of generative AI use, data and image processing, human and animal studies, and more. Neuron uses the STAR Methods framework for detailed methods reporting and encourages pre‑submission inquiries and Cell Press multi‑journal submission. Presubmission inquiries require a title, an abstract and an explanation of why the paper is significant and broadly interesting.",
     "last_accessed": "2025-07-26"
+  },
+  {
+    "journal": "Proceedings of the National Academy of Sciences (PNAS)",
+    "article_type": "Research Report",
+    "title_limit": "Not specified",
+    "abstract_limit": "Not specified",
+    "word_limit": "Preferred length 6 pages (~4,000 words); up to 12 pages allowed",
+    "figure_limit": "About 4 medium-size figures or tables",
+    "reference_limit": "Around 50 references",
+    "structure": "Reports describe original research of exceptional importance",
+    "other_requirements": "May be Direct Submissions or Contributed submissions by NAS members",
+    "last_accessed": "2025-07-26"
+  },
+  {
+    "journal": "Proceedings of the National Academy of Sciences (PNAS)",
+    "article_type": "Brief Report",
+    "title_limit": "Not specified",
+    "abstract_limit": "Not specified",
+    "word_limit": "3 pages (~1,600 words including title page and figure legends)",
+    "figure_limit": "No additional tables or figures in SI; limited to essential data",
+    "reference_limit": "15 references",
+    "structure": "Observations of immediate impact; follow Direct Submission review",
+    "other_requirements": "Published immediate open access and not eligible for member-contributed submissions",
+    "last_accessed": "2025-07-26"
+  },
+  {
+    "journal": "Proceedings of the National Academy of Sciences (PNAS)",
+    "article_type": "Letter to the Editor",
+    "title_limit": "Not specified",
+    "abstract_limit": "Not applicable",
+    "word_limit": "500 words",
+    "figure_limit": "Up to 2 figures or tables",
+    "reference_limit": "10 references",
+    "structure": "Brief comments addressing published PNAS articles",
+    "other_requirements": "Must be submitted within six months of the article's publication; no supporting information",
+    "last_accessed": "2025-07-26"
+  },
+  {
+    "journal": "Proceedings of the National Academy of Sciences (PNAS)",
+    "article_type": "Opinion",
+    "title_limit": "Not specified",
+    "abstract_limit": "Not required",
+    "word_limit": "Approximately 1,500–2,000 words",
+    "figure_limit": "Not specified",
+    "reference_limit": "Not specified",
+    "structure": "Succinct essays in the Front Matter section presenting a clearly articulated argument",
+    "other_requirements": "Reviewed by at least one NAS member or expert; should address counter-arguments",
+    "last_accessed": "2025-07-26"
   }
 ]
