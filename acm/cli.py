@@ -80,6 +80,19 @@ def init(project_name: str = typer.Option(None, help="Name of the project. Defau
         project_name = path.resolve().name
 
     project = ArticleProject(name=project_name)
+    # Create a basic starter checklist
+    project.checklist.tasks = [
+        TaskNode(item="Title and Abstract", subtasks=[
+            TaskNode(item="Title finalized"),
+            TaskNode(item="Abstract drafted"),
+        ]),
+        TaskNode(item="Introduction"),
+        TaskNode(item="Methods"),
+        TaskNode(item="Results"),
+        TaskNode(item="Discussion"),
+        TaskNode(item="Figures & Tables"),
+        TaskNode(item="References"),
+    ]
     (path / PROJECT_FILE).write_text(project.to_yaml())
     typer.echo(f"Initialised project '{project_name}' at {path.resolve()}")
 
@@ -96,7 +109,11 @@ def status():
 def check(task: str, percent: int = typer.Option(None, "--percent", min=0, max=100), done: bool = typer.Option(False, "--done")):
     """Mark a task as done or update percentage."""
     project = load_project()
-    node = ensure_task(project, task)
+    try:
+        node = find_task(project, task)
+    except typer.BadParameter as e:
+        typer.echo(e)
+        return
     if done:
         node.done = True
     if percent is not None:
