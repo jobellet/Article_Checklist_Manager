@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Any, TYPE_CHECKING
+from typing import List, Optional, Any
 
-if TYPE_CHECKING:
-    from .progress import TaskNode as ProgressTaskNode
+from .progress import TaskNode as ProgressTaskNode
 import json
 import yaml
 
