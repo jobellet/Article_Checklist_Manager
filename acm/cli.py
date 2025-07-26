@@ -132,5 +132,14 @@ def delete(task: str):
     typer.echo(f"Deleted {task}")
 
 
+@app.command()
+def template(journal: str, article_type: str = typer.Option(None)):
+    """Generate a journal checklist template."""
+    from .journal import generate_template
+
+    checklist = generate_template(journal, article_type)
+    typer.echo(checklist.to_yaml())
+
+
 if __name__ == "__main__":
     app()
