@@ -70,13 +70,18 @@ def find_parent(tasks, parts):
 
 
 @app.command()
-def init(project_name: str):
-    """Initialize a new article project in a folder."""
-    path = Path(project_name)
-    path.mkdir(parents=True, exist_ok=False)
+def init(project_name: str = typer.Option(None, help="Name of the project. Defaults to the current directory name.")):
+    """Initialize a new article project in the current folder."""
+    path = Path('.')
+    if (path / PROJECT_FILE).exists():
+        raise typer.BadParameter(f"Project already initialised at {path.resolve()}")
+
+    if project_name is None:
+        project_name = path.resolve().name
+
     project = ArticleProject(name=project_name)
     (path / PROJECT_FILE).write_text(project.to_yaml())
-    typer.echo(f"Initialised project at {path}")
+    typer.echo(f"Initialised project '{project_name}' at {path.resolve()}")
 
 
 @app.command()
@@ -104,11 +109,14 @@ def check(task: str, percent: int = typer.Option(None, "--percent", min=0, max=1
 def uncheck(task: str):
     """Mark a task as not done."""
     project = load_project()
-    node = find_task(project, task)
-    node.done = False
-    node.percent = None
-    save_project(project)
-    typer.echo(f"Unchecked {task}")
+    try:
+        node = find_task(project, task)
+        node.done = False
+        node.percent = None
+        save_project(project)
+        typer.echo(f"Unchecked {task}")
+    except typer.BadParameter as e:
+        typer.echo(e)
 
 
 @app.command()
@@ -126,10 +134,11 @@ def delete(task: str):
     """Delete a task."""
     project = load_project()
     parts = [p for p in task.split('/') if p]
-    parent, idx = find_parent(project.checklist.tasks, parts)
-    parent.pop(idx)
-    save_project(project)
-    typer.echo(f"Deleted {task}")
+    if typer.confirm(f"Are you sure you want to delete '{task}'?"):
+        parent, idx = find_parent(project.checklist.tasks, parts)
+        parent.pop(idx)
+        save_project(project)
+        typer.echo(f"Deleted '{task}'")
 
 
 @app.command()
