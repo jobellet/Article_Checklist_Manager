@@ -226,5 +226,61 @@
     "structure": "Succinct essays in the Front Matter section presenting a clearly articulated argument",
     "other_requirements": "Reviewed by at least one NAS member or expert; should address counter-arguments",
     "last_accessed": "2025-07-26"
-  }
+  },
+{
+  "journal": "Journal of Cognitive Neuroscience (JoCN)",
+  "article_type": "Mission and Editorial Policies",
+  "mission_and_policies": {
+    "mission": "Provide a forum for research linking information processing with brain activity, accessible to an interdisciplinary readership.",
+    "methodological_rigor_and_transparency": "Studies must include adequate controls, justify sample size, report effect sizes or Bayes factors, and give precise p values.",
+    "preregistration_and_preprints": "Preregistration encouraged but not required; preregistered research reports available; preprints supported.",
+    "neuroscience_peer_review_consortium": "Member of NPRC; accepts review transfers from NPRC and non-member journals.",
+    "diversity_of_citation_practices": "Encourages computing gender citation balance indices and includes a Diversity statement in all papers.",
+    "peer_review_taxonomy": "Double anonymized review; reviewer interacts with editor; review info not published.",
+    "reviewer_recognition": "Publons integration for verified peer-review credit.",
+    "nonhuman_primate_policy": "An n of 1 can be justified; focus on scientific value over number of animals.",
+    "submission": "Online submissions only via JoCN portal.",
+    "article_processing_charge": "$1250 with waivers for preregistered reports or open access; open access carries separate fee.",
+    "article_types": "Empirical and Methodological papers, Preregistered Research Reports, Reviews, Perspectives"
+  },
+  "last_accessed": "2025-07-26"
+},
+{
+  "journal": "Journal of Cognitive Neuroscience (JoCN)",
+  "article_type": "Empirical and Methodological papers",
+  "abstract_limit": "<251 words",
+  "introduction_limit": "<651 words",
+  "discussion_limit": "<1501 words",
+  "figure_limit": "7 figures",
+  "structure": "Materials & Methods, Results and Discussion (may be combined), References; supplemental materials allowed with submission",
+  "other_requirements": "Ethical statement if involving humans or animals, justification of sample size, report effect sizes",
+  "article_processing_charge": "$1250",
+  "last_accessed": "2025-07-26"
+},
+{
+  "journal": "Journal of Cognitive Neuroscience (JoCN)",
+  "article_type": "Preregistered Research Reports",
+  "structure": "Same format as Empirical and Methodological papers with peer review prior to data collection",
+  "article_processing_charge": "$0",
+  "last_accessed": "2025-07-26"
+},
+{
+  "journal": "Journal of Cognitive Neuroscience (JoCN)",
+  "article_type": "Reviews",
+  "word_limit": "Between 5,000 and 12,000 words",
+  "figure_limit": "Limit of 7 figures",
+  "other_requirements": "Motivate selection of papers being reviewed",
+  "article_processing_charge": "$1250",
+  "last_accessed": "2025-07-26"
+},
+{
+  "journal": "Journal of Cognitive Neuroscience (JoCN)",
+  "article_type": "Perspectives",
+  "word_limit": "Less than 5,000 words",
+  "reference_limit": "Less than 60 references",
+  "figure_limit": "No more than 3 figures",
+  "other_requirements": "Anchor arguments",
+  "article_processing_charge": "$1250",
+  "last_accessed": "2025-07-26"
+}
 ]
