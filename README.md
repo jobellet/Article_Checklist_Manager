@@ -7,7 +7,7 @@ An open-source tool that helps research teams track, from the top-level section 
 ⸻
 
 🚀 Project Goal
-	1.	Create a dedicated project for each manuscript (acm init <ProjectName>).
+	1.	Create a dedicated project for each manuscript (acm init --project-name <ProjectName>).
 	2.	Generate a hierarchical checklist that you can break into any number of sections and nested sub-tasks (e.g. Title & Abstract → Abstract quality → Word count check).
 	3.	Visualize progress with percentage bars at every level: per sub-task, per parent section, and overall.
 	4.	Adapt the checklist to journal-specific requirements (e.g. Cell Press STAR Methods, Nature Reporting Summary, data availability statements).
@@ -15,7 +15,7 @@ An open-source tool that helps research teams track, from the top-level section 
 ⸻
 
 🧩 Key Features (MVP)
-	•	Initialize a new article project with acm init <ProjectName>
+	•	Initialize a new article project with acm init --project-name <ProjectName>
 	•	Generate a starter YAML checklist template that you can edit freely
 	•	Update the status or percentage of any task: acm check "Methods/STAR Methods/Key resources table" --done or --percent 60
 	•	Display a CLI dashboard that aggregates completion across the hierarchy
@@ -56,7 +56,7 @@ Clone the repository and install it locally until the PyPI release is available:
 git clone https://github.com/jobellet/Article_Checklist_Manager.git
 cd Article_Checklist_Manager
 pip install -e .
-acm init MyGreatPaper
+acm init --project-name MyGreatPaper
 acm status
 acm check "Results/Fig 3/Statistical review" --percent 75
 ```
@@ -66,24 +66,23 @@ acm check "Results/Fig 3/Statistical review" --percent 75
 
 📝 Sample Checklist (YAML)
 
-TitleAndAbstract:
-  percent: 50          # auto-calculated
+```yaml
+name: MyGreatPaper
+checklist:
   tasks:
-    - item: "Abstract ≤ 250 words"
-      done: true
-    - item: "Keywords defined"
-      done: false
-Methods:
-  tasks:
-    - item: "STAR Methods compliant"
-      percent: 40      # overrides auto-calc if you want
+    - item: Title and Abstract
       subtasks:
-        - item: "Key resources table"
-          done: true
-        - item: "Lead contact"
+        - item: Title finalized
           done: false
-        - item: "Materials availability"
+        - item: Abstract drafted
           done: false
+    - item: Introduction
+    - item: Methods
+    - item: Results
+    - item: Discussion
+    - item: Figures & Tables
+    - item: References
+```
 
 🔖 TaskNode Schema
 

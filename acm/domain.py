@@ -44,23 +44,24 @@ class TaskNode:
         return node
 
     def to_dict(self) -> dict:
-        data: dict[str, Any] = {'item': self.item}
+        data: dict[str, Any] = {"item": self.item}
         if self.done:
-            data['done'] = self.done
+            data["done"] = self.done
         if self.percent is not None:
-            data['percent'] = self.percent
+            data["percent"] = self.percent
         if self.subtasks:
-            data['subtasks'] = [s.to_dict() for s in self.subtasks]
+            data["subtasks"] = [s.to_dict() for s in self.subtasks]
         return data
 
     @classmethod
     def from_dict(cls, data: dict) -> 'TaskNode':
         node = cls(
-            item=data.get('item', ''),
-            done=data.get('done', False),
-            percent=data.get('percent'),
+            item=data.get("item", ""),
+            done=data.get("done", False),
+            percent=data.get("percent"),
         )
-        for sub in data.get('subtasks', []):
+        child_key = "tasks" if "tasks" in data else "subtasks"
+        for sub in data.get(child_key, []):
             node.add_subtask(cls.from_dict(sub))
         return node
 
@@ -91,8 +92,24 @@ class Checklist:
     @classmethod
     def from_dict(cls, data: dict) -> 'Checklist':
         cl = cls()
-        for t in data.get('tasks', []):
-            cl.add_task(TaskNode.from_dict(t))
+        if 'tasks' in data:
+            for t in data.get('tasks', []):
+                cl.add_task(TaskNode.from_dict(t))
+            return cl
+        # treat each top-level key as a task section
+        for name, info in data.items():
+            if not isinstance(info, dict):
+                cl.add_task(TaskNode(item=name))
+                continue
+            node = TaskNode(
+                item=name,
+                done=info.get('done', False),
+                percent=info.get('percent')
+            )
+            child_key = 'tasks' if 'tasks' in info else 'subtasks'
+            for sub in info.get(child_key, []):
+                node.add_subtask(TaskNode.from_dict(sub))
+            cl.add_task(node)
         return cl
 
     def to_json(self) -> str:
