@@ -33,6 +33,7 @@ An open-source tool that helps research teams track, from the top-level section 
 
 0.2 — Journal Templates
 	•	Built-in templates for Cell Press (STAR Methods), Nature, Science
+        •       Guidelines sourced from `journal_guidelines.json`
 	•	Automatic validation of mandatory checklist items
 
 0.3 — GUI (Electron / Tauri)
