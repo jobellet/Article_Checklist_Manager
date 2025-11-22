@@ -26,26 +26,38 @@ An open-source tool that helps research teams track, from the top-level section 
 🗺️ Roadmap
 
 0.1 — CLI Prototype
-	•	Flexible YAML schema supporting unlimited nesting depth
-	•	Multi-project management
-	•	Core commands: init, status, check, uncheck, rename, delete
-	•	ASCII progress-bar rendering at each nested level
+        •       Flexible YAML schema supporting unlimited nesting depth
+        •       Multi-project management
+        •       Core commands: init, status, check, uncheck, rename, delete
+        •       ASCII progress-bar rendering at each nested level
 
 0.2 — Journal Templates
-	•	Built-in templates for Cell Press (STAR Methods), Nature, Science
+        •       Built-in templates for Cell Press (STAR Methods), Nature, Science
         •       Guidelines sourced from `journal_guidelines.json`
-	•	Automatic validation of mandatory checklist items
+        •       Automatic validation of mandatory checklist items
 
-0.3 — GUI (Electron / Tauri)
-	•	Drag-and-drop to re-order and nest tasks
-	•	Git & GitHub Issues sync
-	•	Real-time collaboration (WebSocket)
+0.3 — GUI Foundations (current)
+        •       In-app upload for manuscripts (.docx) plus JPEG/PNG/SVG/PDF figures
+        •       Automatic asynchronous routines: section word counts, figure resolution checks, font-format hints
+        •       Streamlit-based launcher with one-click `acm gui`
+        •       Progress panels for manuscript and figure quality feedback
+
+0.4 — GUI Refinements
+        •       Drag-and-drop to re-order and nest tasks
+        •       Rich checklist editing with autosave and inline guideline tips
+        •       Upload history with run logs for automated checks
+        •       Configurable thresholds for DPI, font usage, and section targets
+
+0.5 — Collaboration
+        •       Git & GitHub Issues sync
+        •       Real-time collaboration (WebSocket)
+        •       Comment threads per task and per guideline warning
 
 1.0 — Stable Release
-	•	ORCID & DOI integration for auto-fill
-	•	Export scripts for major submission portals
-	•	Internationalization (EN, FR, ES)
-
+        •       ORCID & DOI integration for auto-fill
+        •       Export scripts for major submission portals
+        •       Internationalization (EN, FR, ES)
+        •       Desktop builds (Electron/Tauri) for offline-first workflows
 ⸻
 
 🔧 Quick Install (CLI Prototype)
@@ -60,6 +72,15 @@ acm init --project-name MyGreatPaper
 acm status
 acm check "Results/Fig 3/Statistical review" --percent 75
 ```
+
+🖥️ GUI Preview (Streamlit)
+
+```bash
+pip install -e .
+acm gui
+```
+
+Upload a `.docx` manuscript and optional JPEG/PNG/SVG/PDF figures to trigger asynchronous checks for section word counts, figure resolution, and font metadata hints.
 
 
 ⸻
