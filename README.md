@@ -3,7 +3,7 @@
 A lightweight graphical assistant for checking manuscript readiness. Upload a manuscript and optional figure files, pick the
 submission journal, and see the exact changes required to satisfy the journal guidelines—all from the web interface.
 
-🌐 Live site: https://article-checklist-manager.streamlit.app/
+🌐 Live site: https://jobellet.github.io/Article_Checklist_Manager/
 
 ## 🐍 Python GUI installation
 1. Create and activate a Python 3.9+ virtual environment.
