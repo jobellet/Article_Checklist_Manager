@@ -187,8 +187,9 @@
     "word_limit": "Preferred length 6 pages (~4,000 words); up to 12 pages allowed",
     "figure_limit": "About 4 medium-size figures or tables",
     "reference_limit": "Around 50 references",
-    "structure": "Reports describe original research of exceptional importance",
-    "other_requirements": "May be Direct Submissions or Contributed submissions by NAS members",
+    "structure": "Abstract, Significance Statement, Introduction, Results, Discussion, Materials and Methods; Reports describe original research of exceptional importance",
+    "significance_statement_limit": "Up to 120 words written for a broad audience explaining the study's importance",
+    "other_requirements": "May be Direct Submissions or Contributed submissions by NAS members; Significance Statement required for all research articles",
     "last_accessed": "2025-07-26"
   },
   {
@@ -199,8 +200,9 @@
     "word_limit": "3 pages (~1,600 words including title page and figure legends)",
     "figure_limit": "No additional tables or figures in SI; limited to essential data",
     "reference_limit": "15 references",
-    "structure": "Observations of immediate impact; follow Direct Submission review",
-    "other_requirements": "Published immediate open access and not eligible for member-contributed submissions",
+    "structure": "Abstract, Significance Statement, concise main text presenting observations of immediate impact; follow Direct Submission review",
+    "significance_statement_limit": "Up to 120 words explaining why the finding matters beyond the specialist field",
+    "other_requirements": "Published immediate open access and not eligible for member-contributed submissions; Significance Statement required",
     "last_accessed": "2025-07-26"
   },
   {
@@ -211,7 +213,7 @@
     "word_limit": "500 words",
     "figure_limit": "Up to 2 figures or tables",
     "reference_limit": "10 references",
-    "structure": "Brief comments addressing published PNAS articles",
+    "structure": "Brief comments addressing published PNAS articles; typically no Significance Statement",
     "other_requirements": "Must be submitted within six months of the article's publication; no supporting information",
     "last_accessed": "2025-07-26"
   },
@@ -223,7 +225,7 @@
     "word_limit": "Approximately 1,500–2,000 words",
     "figure_limit": "Not specified",
     "reference_limit": "Not specified",
-    "structure": "Succinct essays in the Front Matter section presenting a clearly articulated argument",
+    "structure": "Succinct essays in the Front Matter section presenting a clearly articulated argument; Significance Statement not required",
     "other_requirements": "Reviewed by at least one NAS member or expert; should address counter-arguments",
     "last_accessed": "2025-07-26"
   },
