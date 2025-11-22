@@ -58,9 +58,10 @@ async function runValidation() {
   try {
     postMessage({ status: STATUS_PENDING, message: "Checking journal guidelines…" });
 
+    const baseUrl = self.location;
     const [guidelines, schema] = await Promise.all([
-      fetchJson("journal_guidelines.json"),
-      fetchJson("schemas/guideline-schema.json"),
+      fetchJson(new URL("../journal_guidelines.json", baseUrl)),
+      fetchJson(new URL("../schemas/guideline-schema.json", baseUrl)),
     ]);
 
     const errors = validateGuidelines(guidelines, schema);
