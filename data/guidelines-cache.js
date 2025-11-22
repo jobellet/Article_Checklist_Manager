@@ -1,17 +1,27 @@
-export const CACHE_KEY = "acm-guidelines-cache";
+/** @typedef {import('./guideline-types.js').Guideline} Guideline */
+export const CACHE_KEY = 'acm-guidelines-cache';
 export const CACHE_VERSION = 1;
 export const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 function getStorage() {
   try {
-    if (typeof localStorage !== "undefined") return localStorage;
-  } catch (error) {
+    if (typeof localStorage !== 'undefined') return localStorage;
+  } catch (_error) {
     // Access to localStorage might throw in some environments; ignore and treat as unavailable.
   }
   return null;
 }
 
-export function readCachedGuidelines(version = CACHE_VERSION, ttlMs = CACHE_TTL_MS) {
+/**
+ * Retrieve cached guidelines if still valid.
+ * @param {number} [version]
+ * @param {number} [ttlMs]
+ * @returns {Guideline[] | null}
+ */
+export function readCachedGuidelines(
+  version = CACHE_VERSION,
+  ttlMs = CACHE_TTL_MS,
+) {
   const storage = getStorage();
   if (!storage) return null;
 
@@ -27,12 +37,18 @@ export function readCachedGuidelines(version = CACHE_VERSION, ttlMs = CACHE_TTL_
     if (!Number.isFinite(timestamp)) return null;
     if (timestamp + ttlMs < Date.now()) return null;
 
-    return cached.data;
-  } catch (error) {
+    return /** @type {Guideline[]} */ (cached.data);
+  } catch (_error) {
     return null;
   }
 }
 
+/**
+ * Persist guidelines to cache storage if available.
+ * @param {Guideline[]} data
+ * @param {number} [version]
+ * @returns {void}
+ */
 export function writeGuidelinesCache(data, version = CACHE_VERSION) {
   const storage = getStorage();
   if (!storage) return;
@@ -44,9 +60,9 @@ export function writeGuidelinesCache(data, version = CACHE_VERSION) {
         version,
         timestamp: Date.now(),
         data,
-      })
+      }),
     );
-  } catch (error) {
+  } catch (_error) {
     // Ignore storage write failures so fetching can still succeed when storage is unavailable.
   }
 }
