@@ -262,7 +262,10 @@ async function loadGuidelines() {
   } catch (err) {
     console.error("Failed to load guidelines", err);
     if (els.changeResults) {
-      els.changeResults.innerHTML = "<p class='muted'>Unable to load journal guidelines.</p>";
+      const hint = window.location.protocol === "file:"
+        ? "Start a local server (e.g., run <code>python -m http.server 8000</code> in this folder) and reload via http://localhost:8000/."
+        : "Please try reloading the page.";
+      els.changeResults.innerHTML = `<p class='muted'>Unable to load journal guidelines. ${hint}</p>`;
     }
   }
 }

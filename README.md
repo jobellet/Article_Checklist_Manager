@@ -12,11 +12,14 @@ submission journal, and see the exact changes required to satisfy the journal gu
   chosen guideline.
 
 ## 🚀 Getting started
-1. Clone the repository and open `index.html` in your browser (no backend required).
+1. Clone the repository, start a simple local server (for example `python -m http.server 8000` from the repo root), and open `http://localhost:8000/index.html` in your browser.
 2. Click **Upload manuscript (.docx)** and select your file.
 3. (Optional) Click **Upload figures** to attach separate figure files.
 4. Type in the **Filter journals** box to narrow the dropdown, then choose the target journal entry.
 5. Review the **Required changes** list and update your manuscript accordingly.
+
+⚠️ Opening the page directly from `file://` prevents browsers from loading `journal_guidelines.json`. Always launch the app
+through a local server (see step 1) so the journal dropdown populates.
 
 Guideline data lives in [`journal_guidelines.json`](journal_guidelines.json). Update it if you need to add or tweak journal
 requirements.
