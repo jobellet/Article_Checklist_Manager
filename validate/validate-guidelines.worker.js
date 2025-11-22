@@ -4,7 +4,12 @@ const STATUS_ERROR = "error";
 
 function resolveUrl(path) {
   try {
-    return new URL(path, self.location.origin).href;
+    const base =
+      typeof import.meta !== "undefined" && import.meta.url
+        ? new URL("../", import.meta.url)
+        : self.location;
+
+    return new URL(path, base).href;
   } catch (err) {
     return path;
   }
