@@ -1,4 +1,5 @@
 import { loadGuidelines } from "./data/guidelines-loader.js";
+import { buildAnalysisExport } from "./export/export-utils.js";
 
 const SECTION_KEYWORDS = {
   introduction: "Introduction",
@@ -34,6 +35,7 @@ const els = {
   journalSelect: document.getElementById("journal-select"),
   analysisSummary: document.getElementById("analysis-summary"),
   changeResults: document.getElementById("change-results"),
+  exportButton: document.getElementById("export-analysis"),
 };
 
 const manuscriptWorker = typeof Worker !== "undefined" ? new Worker("parsers/manuscript.worker.js") : null;
@@ -514,6 +516,36 @@ function handleFigureUpload(event) {
   renderAnalysisSummary();
 }
 
+function triggerDownload(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName || "analysis-export.json";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function handleExportClick() {
+  if (!manuscriptSections.length) {
+    alert("Upload and analyze a manuscript before exporting.");
+    return;
+  }
+
+  const evaluation = selectedGuideline ? evaluateAgainstGuideline(selectedGuideline) : null;
+  const { blob, fileName } = buildAnalysisExport({
+    sections: manuscriptSections,
+    totalWords,
+    figureReferenceCount,
+    figureFileCount,
+    guideline: selectedGuideline,
+    evaluation,
+  });
+
+  triggerDownload(blob, fileName);
+}
+
 function attachEvents() {
   if (els.journalFilter) {
     els.journalFilter.addEventListener("input", populateJournalOptions);
@@ -533,6 +565,10 @@ function attachEvents() {
 
   if (els.figureUpload) {
     els.figureUpload.addEventListener("change", handleFigureUpload);
+  }
+
+  if (els.exportButton) {
+    els.exportButton.addEventListener("click", handleExportClick);
   }
 }
 
