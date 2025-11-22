@@ -84,7 +84,7 @@ Upload a `.docx` manuscript and optional JPEG/PNG/SVG/PDF figures to trigger asy
 
 🌐 Static Web Interface (GitHub Pages ready)
 
-The repository now ships with a zero-backend HTML/CSS/JavaScript interface in `web/` that mirrors the Python checklist logic. Open `web/index.html` locally or point GitHub Pages at the `web` folder to host it.
+The repository now ships with a zero-backend HTML/CSS/JavaScript interface in the repository root that mirrors the Python checklist logic. Open `index.html` locally or point GitHub Pages at the root folder to host it.
 
 Key capabilities:
 
@@ -131,7 +131,7 @@ See [`FORMAT.md`](FORMAT.md) for the guideline schema.
 
 📦 JavaScript & Web parity map
 
-Functions mirrored from the Python core into the npm-friendly module at `web/checklist.js`:
+Functions mirrored from the Python core into the npm-friendly module at `checklist.js`:
 
         •       `TaskNode.computed_percent` → `TaskNode.computedPercent` (implemented)
         •       `TaskNode.to_dict` / `TaskNode.from_dict` → `toDict` / `fromDict` (implemented)
@@ -142,7 +142,7 @@ Functions mirrored from the Python core into the npm-friendly module at `web/che
         •       `progress.progress_bar` / `progress.render_tree` → not ported (web UI renders visual bars instead of ASCII output)
         •       `analysis.parse_docx_sections` / `analysis.analyze_manuscript` → cannot be implemented client-side (browser cannot parse `.docx` files without heavy dependencies)
 
-Functions present in the new web interface (`web/index.html` + `web/app.js`):
+Functions present in the new web interface (`index.html` + `app.js`):
 
         •       Create/edit nested tasks and subtasks (implemented)
         •       Toggle `done` state or set explicit percents with a slider (implemented)
