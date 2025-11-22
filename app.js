@@ -1,23 +1,6 @@
 import { loadGuidelines } from "./data/guidelines-loader.js";
 import { wireValidationStatus } from "./validate/validation-status.js";
-
-const SECTION_KEYWORDS = {
-  introduction: "Introduction",
-  background: "Introduction",
-  method: "Methods",
-  methods: "Methods",
-  "materials and methods": "Methods",
-  materials: "Methods",
-  methodology: "Methods",
-  approach: "Methods",
-  result: "Results",
-  results: "Results",
-  discussion: "Discussion",
-  conclusion: "Conclusion",
-  conclusions: "Conclusion",
-  abstract: "Abstract",
-  significance: "Significance Statement",
-};
+import { detectSections, findCategoriesInText } from "./parsers/section-detector.js";
 
 let guidelines = [];
 let filteredGuidelines = [];
@@ -43,14 +26,6 @@ const validationWorker =
   typeof Worker !== "undefined" ? new Worker("validate/validate-guidelines.worker.js", { type: "module" }) : null;
 
 wireValidationStatus(validationWorker);
-
-function categorizeSection(title) {
-  const lowered = title.toLowerCase();
-  for (const [key, category] of Object.entries(SECTION_KEYWORDS)) {
-    if (lowered.includes(key)) return category;
-  }
-  return "Other";
-}
 
 function countWords(text) {
   return text.split(/\s+/).filter(Boolean).length;
@@ -110,7 +85,6 @@ async function parseDocxFile(file, onProgress = () => {}) {
       sections.push({
         title: finished.title,
         word_count: finished.word_count,
-        category: categorizeSection(finished.title),
       });
     }
   };
@@ -139,11 +113,12 @@ async function parseDocxFile(file, onProgress = () => {}) {
   closeSections(0);
 
   if (!sections.length && preambleWords) {
-    sections.push({ title: file.name, word_count: preambleWords, category: "Other" });
+    sections.push({ title: file.name, word_count: preambleWords });
   }
 
   reportProgress("Finishing analysis", 0.95);
-  return { sections: sections.length ? sections : [{ title: file.name, word_count: 0, category: "Other" }], textContent: textContent.join("\n") };
+  const categorized = detectSections(sections.length ? sections : [{ title: file.name, word_count: 0 }]);
+  return { sections: categorized, textContent: textContent.join("\n") };
 }
 
 async function parsePlainTextFile(file, onProgress = () => {}) {
@@ -152,7 +127,7 @@ async function parsePlainTextFile(file, onProgress = () => {}) {
   const text = await file.text();
   const words = countWords(text);
   reportProgress("Finishing analysis", 0.95);
-  return { sections: [{ title: file.name, word_count: words, category: "Other" }], textContent: text };
+  return { sections: detectSections([{ title: file.name, word_count: words }]), textContent: text };
 }
 
 async function parseMarkdownFile(file, onProgress = () => {}) {
@@ -180,7 +155,7 @@ async function parseMarkdownFile(file, onProgress = () => {}) {
   const closeSections = (level) => {
     while (sectionStack.length && sectionStack[sectionStack.length - 1].level >= level) {
       const finished = sectionStack.pop();
-      sections.push({ title: finished.title, word_count: finished.word_count, category: categorizeSection(finished.title) });
+      sections.push({ title: finished.title, word_count: finished.word_count });
     }
   };
 
@@ -207,10 +182,11 @@ async function parseMarkdownFile(file, onProgress = () => {}) {
   reportProgress("Finishing analysis", 0.95);
 
   if (!sections.length && preambleWords) {
-    return { sections: [{ title: file.name, word_count: preambleWords, category: "Other" }], textContent: text };
+    return { sections: detectSections([{ title: file.name, word_count: preambleWords }]), textContent: text };
   }
 
-  return { sections: sections.length ? sections : [{ title: file.name, word_count: 0, category: "Other" }], textContent: text };
+  const categorized = detectSections(sections.length ? sections : [{ title: file.name, word_count: 0 }]);
+  return { sections: categorized, textContent: text };
 }
 
 async function parseManuscriptFileLocally(file, onProgress) {
@@ -357,12 +333,7 @@ function parseWordLimit(limit) {
 
 function requiredCategories(structure) {
   if (!structure) return new Set();
-  const categories = new Set();
-  const lower = structure.toLowerCase();
-  for (const [key, category] of Object.entries(SECTION_KEYWORDS)) {
-    if (lower.includes(key)) categories.add(category);
-  }
-  return categories;
+  return findCategoriesInText(structure);
 }
 
 function expectedSectionsForGuideline(guideline) {
@@ -379,11 +350,36 @@ function aggregateWordsByCategory(sections) {
   }, {});
 }
 
+function sectionLimitStatus(actual, limit) {
+  if (!limit) return { status: "na", label: "—" };
+  if (actual > limit) return { status: "over", label: `${actual} / ${limit} words` };
+  if (actual >= 0.9 * limit) return { status: "warning", label: `${actual} / ${limit} words` };
+  return { status: "ok", label: `${actual} / ${limit} words` };
+}
+
 function buildExpectedWordMap(guideline, expectedCategories) {
   const limit = parseWordLimit(guideline.word_limit);
   if (!limit || !expectedCategories.length) return {};
   const perSection = Math.round(limit / expectedCategories.length);
   return expectedCategories.reduce((acc, cat) => ({ ...acc, [cat]: perSection }), {});
+}
+
+const SECTION_LIMIT_KEYS = {
+  abstract_limit: "Abstract",
+  introduction_limit: "Introduction",
+  methods_limit: "Methods",
+  results_limit: "Results",
+  discussion_limit: "Discussion",
+  conclusion_limit: "Conclusion",
+  significance_statement_limit: "Significance Statement",
+};
+
+function sectionLimitsFromGuideline(guideline) {
+  return Object.entries(SECTION_LIMIT_KEYS).reduce((acc, [key, category]) => {
+    const parsed = parseWordLimit(guideline[key]);
+    if (parsed) acc[category] = parsed;
+    return acc;
+  }, {});
 }
 
 function evaluateAgainstGuideline(guideline) {
@@ -409,13 +405,43 @@ function evaluateAgainstGuideline(guideline) {
   }
 
   const byCategory = aggregateWordsByCategory(manuscriptSections);
+  const sectionLimits = sectionLimitsFromGuideline(guideline);
   const expectedWordMap = buildExpectedWordMap(guideline, expectedCategories);
+
+  for (const [category, limit] of Object.entries(sectionLimits)) {
+    if (category === "Significance Statement") continue;
+    const actual = byCategory[category] || 0;
+    if (actual > limit) {
+      changeList.push(`${category} ${actual}/${limit} words (reduce by ${actual - limit})`);
+    }
+  }
+
+  const significanceLimit = sectionLimits["Significance Statement"];
+  const significanceWords = byCategory["Significance Statement"] || 0;
+  if (
+    significanceLimit &&
+    guideline.journal?.includes("Proceedings of the National Academy of Sciences") &&
+    guideline.article_type === "Research Report"
+  ) {
+    if (!significanceWords) {
+      changeList.push("Add a Significance Statement (required for PNAS Research Reports)");
+    } else if (significanceWords > significanceLimit) {
+      changeList.push(
+        `Significance Statement ${significanceWords}/${significanceLimit} words (reduce by ${significanceWords - significanceLimit})`
+      );
+    }
+  }
 
   const sectionDetails = expectedCategories.map((category) => {
     const actual = byCategory[category] || 0;
-    const expected = expectedWordMap[category] || null;
-    const ratio = expected ? (actual / expected).toFixed(2) : "n/a";
-    return { category, actual, expected, ratio };
+    const limit = sectionLimits[category] || null;
+    const expected = limit ? null : expectedWordMap[category] || null;
+    const ratio = limit
+      ? (limit ? (actual / limit).toFixed(2) : "n/a")
+      : expected
+      ? (actual / expected).toFixed(2)
+      : "n/a";
+    return { category, actual, expected, ratio, limit };
   });
 
   return { changeList, sectionDetails };
@@ -472,11 +498,18 @@ function renderChangeResults() {
   sectionTable.appendChild(heading);
 
   const table = document.createElement("table");
-  table.innerHTML = "<thead><tr><th>Section</th><th>Actual words</th><th>Expected words</th><th>Actual/Expected</th></tr></thead>";
+  const hasSectionLimits = sectionDetails.some((detail) => detail.limit);
+  const ratioHeader = hasSectionLimits ? "Actual/Limit" : "Actual/Expected";
+  const expectedHeader = hasSectionLimits ? "Expected words (estimate)" : "Expected words";
+  table.innerHTML = `<thead><tr><th>Section</th><th>Actual words</th>${hasSectionLimits ? "<th>Limit status</th>" : ""}<th>${expectedHeader}</th><th>${ratioHeader}</th></tr></thead>`;
   const tbody = document.createElement("tbody");
   sectionDetails.forEach((detail) => {
     const row = document.createElement("tr");
-    row.innerHTML = `<td>${detail.category}</td><td>${detail.actual}</td><td>${detail.expected ?? "n/a"}</td><td>${detail.ratio}</td>`;
+    const status = sectionLimitStatus(detail.actual, detail.limit);
+    const limitCell = hasSectionLimits
+      ? `<td>${detail.limit ? `<span class="limit-pill limit-pill--${status.status}">${status.label}</span>` : "—"}</td>`
+      : "";
+    row.innerHTML = `<td>${detail.category}</td><td>${detail.actual}</td>${limitCell}<td>${detail.expected ?? "n/a"}</td><td>${detail.ratio}</td>`;
     tbody.appendChild(row);
   });
   table.appendChild(tbody);

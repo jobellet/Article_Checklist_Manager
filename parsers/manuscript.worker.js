@@ -1,24 +1,38 @@
 importScripts("https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js");
 
-const SECTION_KEYWORDS = {
-  introduction: "Introduction",
-  background: "Introduction",
-  method: "Methods",
-  methods: "Methods",
-  "materials and methods": "Methods",
-  methodology: "Methods",
-  result: "Results",
-  results: "Results",
-  discussion: "Discussion",
-  conclusion: "Conclusion",
-  conclusions: "Conclusion",
-  abstract: "Abstract",
-};
+const SECTION_PATTERNS = [
+  { category: "Abstract", patterns: [/\babstract\b/i] },
+  { category: "Significance Statement", patterns: [/\bsignificance statement\b/i, /\bimpact statement\b/i, /\bsignificance\b/i] },
+  { category: "Introduction", patterns: [/\bintroduction\b/i, /\bbackground\b/i] },
+  {
+    category: "Methods",
+    patterns: [
+      /\bmaterials?\s*(?:&|and)\s*methods?\b/i,
+      /\bmethods?\b/i,
+      /\bmethodology\b/i,
+      /\bapproach\b/i,
+    ],
+  },
+  { category: "Results", patterns: [/\bresults?\b/i] },
+  { category: "Discussion", patterns: [/\bdiscussion\b/i] },
+  { category: "Conclusion", patterns: [/\bconclusions?\b/i] },
+];
+
+function normalizeSectionTitle(title) {
+  return (title || "")
+    .replace(/^[^A-Za-z0-9]+/, "")
+    .replace(/[^A-Za-z0-9&]+/g, " ")
+    .toLowerCase()
+    .trim();
+}
 
 function categorizeSection(title) {
-  const lowered = title.toLowerCase();
-  for (const [key, category] of Object.entries(SECTION_KEYWORDS)) {
-    if (lowered.includes(key)) return category;
+  const normalized = normalizeSectionTitle(title);
+  if (!normalized) return "Other";
+  for (const { category, patterns } of SECTION_PATTERNS) {
+    if (patterns.some((pattern) => pattern.test(normalized))) {
+      return category;
+    }
   }
   return "Other";
 }
