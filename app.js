@@ -4,7 +4,9 @@ const SECTION_KEYWORDS = {
   method: "Methods",
   methods: "Methods",
   "materials and methods": "Methods",
+  materials: "Methods",
   methodology: "Methods",
+  approach: "Methods",
   result: "Results",
   results: "Results",
   discussion: "Discussion",
@@ -71,8 +73,8 @@ async function parseDocxFile(file) {
 
   const sections = [];
   const textContent = [];
-  let currentTitle = null;
-  let wordCount = 0;
+  const sectionStack = [];
+  let preambleWords = 0;
 
   const getText = (p) =>
     Array.from(p.getElementsByTagName("w:t"))
@@ -80,38 +82,47 @@ async function parseDocxFile(file) {
       .join("")
       .trim();
 
-  const isHeading = (p) => Array.from(p.getElementsByTagName("w:pStyle")).some((s) => s.getAttribute("w:val")?.startsWith("Heading"));
+  const headingLevel = (p) => {
+    const style = Array.from(p.getElementsByTagName("w:pStyle")).find((s) => s.getAttribute("w:val")?.startsWith("Heading"));
+    if (!style) return null;
+    const match = style.getAttribute("w:val").match(/Heading\s*([0-9]+)/i) || style.getAttribute("w:val").match(/Heading([0-9]+)/i);
+    return match ? Number(match[1]) : 1;
+  };
+
+  const closeSections = (level) => {
+    while (sectionStack.length && sectionStack[sectionStack.length - 1].level >= level) {
+      const finished = sectionStack.pop();
+      sections.push({
+        title: finished.title,
+        word_count: finished.word_count,
+        category: categorizeSection(finished.title),
+      });
+    }
+  };
 
   for (const p of paragraphs) {
     const text = getText(p);
     if (!text) continue;
     textContent.push(text);
 
-    if (isHeading(p)) {
-      if (currentTitle !== null) {
-        sections.push({
-          title: currentTitle,
-          word_count: wordCount,
-          category: categorizeSection(currentTitle),
-        });
-      }
-      currentTitle = text;
-      wordCount = 0;
+    const level = headingLevel(p);
+    if (level !== null) {
+      closeSections(level);
+      sectionStack.push({ title: text, level, word_count: 0 });
+    } else if (sectionStack.length) {
+      sectionStack[sectionStack.length - 1].word_count += text.split(/\s+/).filter(Boolean).length;
     } else {
-      wordCount += text.split(/\s+/).filter(Boolean).length;
+      preambleWords += text.split(/\s+/).filter(Boolean).length;
     }
   }
 
-  if (currentTitle === null) {
-    const total = paragraphs
-      .map(getText)
-      .filter(Boolean)
-      .reduce((acc, value) => acc + value.split(/\s+/).filter(Boolean).length, 0);
-    return { sections: [{ title: "Document", word_count: total, category: "Other" }], textContent: textContent.join("\n") };
+  closeSections(0);
+
+  if (!sections.length && preambleWords) {
+    sections.push({ title: file.name, word_count: preambleWords, category: "Other" });
   }
 
-  sections.push({ title: currentTitle, word_count: wordCount, category: categorizeSection(currentTitle) });
-  return { sections, textContent: textContent.join("\n") };
+  return { sections: sections.length ? sections : [{ title: file.name, word_count: 0, category: "Other" }], textContent: textContent.join("\n") };
 }
 
 async function parsePlainTextFile(file) {
@@ -124,35 +135,49 @@ async function parseMarkdownFile(file) {
   const text = await file.text();
   const lines = text.split(/\r?\n/);
   const sections = [];
-  let currentTitle = null;
+  const sectionStack = [];
   let buffer = [];
+  let preambleWords = 0;
 
-  const flushSection = () => {
-    if (buffer.length === 0) return;
+  const flushTextToCurrent = () => {
+    if (!buffer.length) return;
     const content = buffer.join(" ").trim();
     if (!content) return;
-    const title = currentTitle || file.name;
-    sections.push({ title, word_count: countWords(content), category: categorizeSection(title) });
+    if (!sectionStack.length) {
+      preambleWords += countWords(content);
+    } else {
+      sectionStack[sectionStack.length - 1].word_count += countWords(content);
+    }
     buffer = [];
+  };
+
+  const closeSections = (level) => {
+    while (sectionStack.length && sectionStack[sectionStack.length - 1].level >= level) {
+      const finished = sectionStack.pop();
+      sections.push({ title: finished.title, word_count: finished.word_count, category: categorizeSection(finished.title) });
+    }
   };
 
   lines.forEach((line) => {
     const heading = line.match(/^(#+)\s+(.*)$/);
     if (heading) {
-      flushSection();
-      currentTitle = heading[2].trim();
+      flushTextToCurrent();
+      const level = heading[1].length;
+      closeSections(level);
+      sectionStack.push({ title: heading[2].trim(), level, word_count: 0 });
     } else {
       buffer.push(line);
     }
   });
 
-  flushSection();
+  flushTextToCurrent();
+  closeSections(0);
 
-  if (!sections.length) {
-    return { sections: [{ title: file.name, word_count: countWords(text), category: "Other" }], textContent: text };
+  if (!sections.length && preambleWords) {
+    return { sections: [{ title: file.name, word_count: preambleWords, category: "Other" }], textContent: text };
   }
 
-  return { sections, textContent: text };
+  return { sections: sections.length ? sections : [{ title: file.name, word_count: 0, category: "Other" }], textContent: text };
 }
 
 async function parseManuscriptFile(file) {
@@ -247,11 +272,32 @@ function requiredCategories(structure) {
   return categories;
 }
 
+function expectedSectionsForGuideline(guideline) {
+  const detected = requiredCategories(guideline.structure);
+  if (detected.size) return [...detected];
+  return ["Abstract", "Introduction", "Methods", "Results", "Discussion", "Conclusion"].filter(Boolean);
+}
+
+function aggregateWordsByCategory(sections) {
+  return sections.reduce((acc, section) => {
+    const key = section.category || "Other";
+    acc[key] = (acc[key] || 0) + section.word_count;
+    return acc;
+  }, {});
+}
+
+function buildExpectedWordMap(guideline, expectedCategories) {
+  const limit = parseWordLimit(guideline.word_limit);
+  if (!limit || !expectedCategories.length) return {};
+  const perSection = Math.round(limit / expectedCategories.length);
+  return expectedCategories.reduce((acc, cat) => ({ ...acc, [cat]: perSection }), {});
+}
+
 function evaluateAgainstGuideline(guideline) {
   const changeList = [];
-  const required = requiredCategories(guideline.structure);
+  const expectedCategories = expectedSectionsForGuideline(guideline);
   const manuscriptCats = new Set(manuscriptSections.map((s) => s.category).filter((c) => c !== "Other"));
-  const missing = [...required].filter((cat) => !manuscriptCats.has(cat)).sort();
+  const missing = expectedCategories.filter((cat) => !manuscriptCats.has(cat)).sort();
   if (missing.length) {
     changeList.push(`Add sections covering: ${missing.join(", ")}`);
   }
@@ -269,7 +315,17 @@ function evaluateAgainstGuideline(guideline) {
     }
   }
 
-  return changeList;
+  const byCategory = aggregateWordsByCategory(manuscriptSections);
+  const expectedWordMap = buildExpectedWordMap(guideline, expectedCategories);
+
+  const sectionDetails = expectedCategories.map((category) => {
+    const actual = byCategory[category] || 0;
+    const expected = expectedWordMap[category] || null;
+    const ratio = expected ? (actual / expected).toFixed(2) : "n/a";
+    return { category, actual, expected, ratio };
+  });
+
+  return { changeList, sectionDetails };
 }
 
 function renderChangeResults() {
@@ -290,7 +346,7 @@ function renderChangeResults() {
     return;
   }
 
-  const changes = evaluateAgainstGuideline(selectedGuideline);
+  const { changeList, sectionDetails } = evaluateAgainstGuideline(selectedGuideline);
   const card = document.createElement("div");
   card.className = "change-results";
 
@@ -298,7 +354,7 @@ function renderChangeResults() {
   title.textContent = `${selectedGuideline.journal} — ${selectedGuideline.article_type}`;
   card.appendChild(title);
 
-  if (!changes.length) {
+  if (!changeList.length) {
     const para = document.createElement("p");
     para.textContent = "No required changes detected. This manuscript fits the selected journal limits.";
     card.appendChild(para);
@@ -308,13 +364,31 @@ function renderChangeResults() {
 
   const list = document.createElement("ol");
   list.className = "change-results__list";
-  changes.forEach((change) => {
+  changeList.forEach((change) => {
     const li = document.createElement("li");
     li.textContent = change;
     list.appendChild(li);
   });
 
   card.appendChild(list);
+
+  const sectionTable = document.createElement("div");
+  sectionTable.className = "section-ratios";
+  const heading = document.createElement("h4");
+  heading.textContent = "Expected sections";
+  sectionTable.appendChild(heading);
+
+  const table = document.createElement("table");
+  table.innerHTML = "<thead><tr><th>Section</th><th>Actual words</th><th>Expected words</th><th>Actual/Expected</th></tr></thead>";
+  const tbody = document.createElement("tbody");
+  sectionDetails.forEach((detail) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `<td>${detail.category}</td><td>${detail.actual}</td><td>${detail.expected ?? "n/a"}</td><td>${detail.ratio}</td>`;
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+  sectionTable.appendChild(table);
+  card.appendChild(sectionTable);
   container.appendChild(card);
 }
 
