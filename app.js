@@ -17,9 +17,15 @@ const els = {
   figureStatus: document.getElementById("figure-status"),
   journalFilter: document.getElementById("journal-filter"),
   journalSelect: document.getElementById("journal-select"),
+  journalSummary: document.getElementById("journal-summary"),
+  exportMarkdown: document.getElementById("export-markdown"),
   analysisSummary: document.getElementById("analysis-summary"),
   changeResults: document.getElementById("change-results"),
 };
+
+if (els.exportMarkdown) {
+  els.exportMarkdown.disabled = true;
+}
 
 const manuscriptWorker = typeof Worker !== "undefined" ? new Worker("parsers/manuscript.worker.js") : null;
 const validationWorker =
@@ -29,6 +35,14 @@ wireValidationStatus(validationWorker);
 
 function countWords(text) {
   return text.split(/\s+/).filter(Boolean).length;
+}
+
+function normalizeSearchValue(value) {
+  return (value || "")
+    .toString()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
 }
 
 function countFigureMentionsFromText(text) {
@@ -313,22 +327,52 @@ function renderAnalysisSummary() {
   summary.appendChild(figureNote);
 }
 
-function parseWordLimit(limit) {
+function parseNumericLimit(limit) {
   if (!limit) return null;
-  const lower = limit.toLowerCase();
-  const parseNumber = (value) => Number(value.replace(/,/g, ""));
+  const normalized = limit.toString().toLowerCase();
+  const parseNumber = (value) => Number(String(value).replace(/,/g, ""));
 
-  const withWords = [...lower.matchAll(/(\d[\d,]*)\s*(?:word|words)/g)].map((m) => parseNumber(m[1])).filter(Boolean);
-  if (withWords.length) {
-    return Math.max(...withWords);
+  const rangeMatches = [...normalized.matchAll(/(\d[\d,]*)\s*[–-]\s*(\d[\d,]*)/g)].flatMap((m) => [m[1], m[2]]);
+  const withUnits = [...normalized.matchAll(/(\d[\d,]*)\s*(?:word|words|reference|references|figure|figures|table|tables|item|items)/g)].map(
+    (m) => m[1]
+  );
+  const allNumbers = [...normalized.matchAll(/(\d[\d,]*)/g)].map((m) => m[1]);
+  const candidates = [...rangeMatches, ...withUnits, ...allNumbers].map((num) => parseNumber(num)).filter(Boolean);
+  if (candidates.length) {
+    return Math.max(...candidates);
   }
-
-  const allNumbers = [...lower.matchAll(/(\d[\d,]*)/g)].map((m) => parseNumber(m[1])).filter(Boolean);
-  if (allNumbers.length) {
-    return Math.max(...allNumbers);
-  }
-
   return null;
+}
+
+function parseWordLimit(limit) {
+  return parseNumericLimit(limit);
+}
+
+function computeComplianceStatus(actual, limit) {
+  const parsedLimit = typeof limit === "number" ? limit : parseNumericLimit(limit);
+  if (!parsedLimit) return { status: "na", label: "No stated limit", limit: null, actual };
+  if (actual === null || actual === undefined) return { status: "na", label: "No manuscript data", limit: parsedLimit, actual };
+  const ratio = parsedLimit ? actual / parsedLimit : 0;
+  if (ratio > 1) return { status: "over", label: "Over limit", limit: parsedLimit, actual };
+  if (ratio >= 0.9) return { status: "warning", label: "Close to limit", limit: parsedLimit, actual };
+  return { status: "ok", label: "Under limit", limit: parsedLimit, actual };
+}
+
+function createComplianceIndicator(status, detailText) {
+  const indicator = document.createElement("span");
+  indicator.className = `compliance-indicator compliance-indicator--${status.status}`;
+  const glyph = document.createElement("span");
+  glyph.className = `status-glyph status-glyph--${status.status}`;
+  glyph.setAttribute("aria-hidden", "true");
+  const srLabel = document.createElement("span");
+  srLabel.className = "sr-only";
+  srLabel.textContent = status.label;
+  const text = document.createElement("span");
+  text.textContent = detailText;
+  indicator.appendChild(glyph);
+  indicator.appendChild(srLabel);
+  indicator.appendChild(text);
+  return indicator;
 }
 
 function requiredCategories(structure) {
@@ -351,10 +395,9 @@ function aggregateWordsByCategory(sections) {
 }
 
 function sectionLimitStatus(actual, limit) {
-  if (!limit) return { status: "na", label: "—" };
-  if (actual > limit) return { status: "over", label: `${actual} / ${limit} words` };
-  if (actual >= 0.9 * limit) return { status: "warning", label: `${actual} / ${limit} words` };
-  return { status: "ok", label: `${actual} / ${limit} words` };
+  const status = computeComplianceStatus(actual, limit);
+  if (!status.limit) return { status: status.status, label: "—" };
+  return { status: status.status, label: `${actual} / ${status.limit} words` };
 }
 
 function buildExpectedWordMap(guideline, expectedCategories) {
@@ -380,6 +423,92 @@ function sectionLimitsFromGuideline(guideline) {
     if (parsed) acc[category] = parsed;
     return acc;
   }, {});
+}
+
+function buildConstraintSummaries(
+  guideline,
+  {
+    sections = manuscriptSections,
+    totalWordsCount = totalWords,
+    figureMentions = figureReferenceCount,
+    figureUploads = figureFileCount,
+    referenceCount = null,
+  } = {}
+) {
+  const hasManuscriptData = Array.isArray(sections) && sections.length > 0;
+  const hasFigureData =
+    (figureMentions !== null && figureMentions !== undefined) || (figureUploads !== null && figureUploads !== undefined);
+  const figureActual = hasFigureData ? Math.max(figureMentions ?? 0, figureUploads ?? 0) : null;
+  const wordLimit = parseWordLimit(guideline.word_limit);
+  const figureLimit = parseNumericLimit(guideline.figure_limit);
+  const referenceLimit = parseNumericLimit(guideline.reference_limit);
+
+  return [
+    {
+      key: "words",
+      label: "Main text",
+      limitText: guideline.word_limit || "Not specified",
+      status: computeComplianceStatus(hasManuscriptData ? totalWordsCount : null, wordLimit),
+      detail: wordLimit
+        ? hasManuscriptData
+          ? `${totalWordsCount || 0} / ${wordLimit} words`
+          : `${wordLimit} words (limit)`
+        : guideline.word_limit || "Limit not provided",
+    },
+    {
+      key: "figures",
+      label: "Figures/Tables",
+      limitText: guideline.figure_limit || "Not specified",
+      status: computeComplianceStatus(hasManuscriptData ? figureActual : null, figureLimit),
+      detail: figureLimit
+        ? hasManuscriptData && figureActual !== null
+          ? `${figureActual} of ${figureLimit} items`
+          : `${figureLimit} items (limit)`
+        : guideline.figure_limit || "Limit not provided",
+    },
+    {
+      key: "references",
+      label: "References",
+      limitText: guideline.reference_limit || "Not specified",
+      status: computeComplianceStatus(hasManuscriptData ? referenceCount : null, referenceLimit),
+      detail: referenceLimit
+        ? hasManuscriptData && referenceCount !== null
+          ? `${referenceCount} of ${referenceLimit}`
+          : `${referenceLimit} references (limit)`
+        : guideline.reference_limit || "Limit not provided",
+    },
+  ];
+}
+
+function renderJournalSummary() {
+  if (!els.journalSummary) return;
+  const container = els.journalSummary;
+  container.innerHTML = "";
+
+  if (!selectedGuideline) {
+    container.classList.add("muted");
+    container.innerHTML = "<p>No journal selected yet.</p>";
+    if (els.exportMarkdown) els.exportMarkdown.disabled = true;
+    return;
+  }
+
+  container.classList.remove("muted");
+  if (els.exportMarkdown) els.exportMarkdown.disabled = false;
+  const title = document.createElement("p");
+  title.className = "journal-summary__title";
+  title.textContent = `${selectedGuideline.journal} — ${selectedGuideline.article_type}`;
+  container.appendChild(title);
+
+  const constraints = buildConstraintSummaries(selectedGuideline);
+  constraints.forEach((constraint) => {
+    const row = document.createElement("div");
+    row.className = "journal-summary__row";
+    const label = document.createElement("span");
+    label.textContent = constraint.label;
+    row.appendChild(label);
+    row.appendChild(createComplianceIndicator(constraint.status, constraint.detail));
+    container.appendChild(row);
+  });
 }
 
 function evaluateAgainstGuideline(guideline) {
@@ -459,6 +588,8 @@ function renderChangeResults() {
     return;
   }
 
+  renderJournalSummary();
+
   if (!manuscriptSections.length) {
     container.classList.add("muted");
     container.innerHTML = "<p>Upload a manuscript to run journal checks.</p>";
@@ -466,12 +597,36 @@ function renderChangeResults() {
   }
 
   const { changeList, sectionDetails } = evaluateAgainstGuideline(selectedGuideline);
+  const constraints = buildConstraintSummaries(selectedGuideline);
   const card = document.createElement("div");
   card.className = "change-results";
 
   const title = document.createElement("h3");
   title.textContent = `${selectedGuideline.journal} — ${selectedGuideline.article_type}`;
   card.appendChild(title);
+
+  const constraintHeading = document.createElement("h4");
+  constraintHeading.textContent = "Key limits";
+  card.appendChild(constraintHeading);
+
+  const constraintGrid = document.createElement("div");
+  constraintGrid.className = "constraint-grid";
+  constraints.forEach((constraint) => {
+    const tile = document.createElement("div");
+    tile.className = "constraint-tile";
+    const label = document.createElement("span");
+    label.textContent = constraint.label;
+    label.className = "constraint-title";
+    const indicator = createComplianceIndicator(constraint.status, constraint.detail);
+    const meta = document.createElement("div");
+    meta.className = "constraint-tile__meta";
+    meta.textContent = constraint.limitText;
+    tile.appendChild(label);
+    tile.appendChild(indicator);
+    tile.appendChild(meta);
+    constraintGrid.appendChild(tile);
+  });
+  card.appendChild(constraintGrid);
 
   if (!changeList.length) {
     const para = document.createElement("p");
@@ -506,10 +661,17 @@ function renderChangeResults() {
   sectionDetails.forEach((detail) => {
     const row = document.createElement("tr");
     const status = sectionLimitStatus(detail.actual, detail.limit);
-    const limitCell = hasSectionLimits
-      ? `<td>${detail.limit ? `<span class="limit-pill limit-pill--${status.status}">${status.label}</span>` : "—"}</td>`
-      : "";
-    row.innerHTML = `<td>${detail.category}</td><td>${detail.actual}</td>${limitCell}<td>${detail.expected ?? "n/a"}</td><td>${detail.ratio}</td>`;
+    const limitCell = hasSectionLimits ? document.createElement("td") : null;
+    const limitPlaceholder = hasSectionLimits ? '<td class="placeholder"></td>' : "";
+    row.innerHTML = `<td>${detail.category}</td><td>${detail.actual}</td>${limitPlaceholder}<td>${detail.expected ?? "n/a"}</td><td>${detail.ratio}</td>`;
+    if (hasSectionLimits && limitCell) {
+      if (detail.limit) {
+        limitCell.appendChild(createComplianceIndicator(computeComplianceStatus(detail.actual, detail.limit), status.label));
+      } else {
+        limitCell.textContent = "—";
+      }
+      row.children[2].replaceWith(limitCell);
+    }
     tbody.appendChild(row);
   });
   table.appendChild(tbody);
@@ -518,10 +680,100 @@ function renderChangeResults() {
   container.appendChild(card);
 }
 
+function generateChecklistMarkdown(
+  guideline,
+  { sections = manuscriptSections, totalWordsCount = totalWords, figureMentions = figureReferenceCount, figureUploads = figureFileCount } = {}
+) {
+  const lines = [];
+  const constraintSummaries = buildConstraintSummaries(guideline, {
+    sections,
+    totalWordsCount,
+    figureMentions,
+    figureUploads,
+  });
+  const sectionLimits = sectionLimitsFromGuideline(guideline);
+  const expectedCategories = expectedSectionsForGuideline(guideline);
+  const byCategory = aggregateWordsByCategory(sections);
+  const hasFigureData =
+    (figureMentions !== null && figureMentions !== undefined) || (figureUploads !== null && figureUploads !== undefined);
+  const figureActual = hasFigureData ? Math.max(figureMentions ?? 0, figureUploads ?? 0) : "n/a";
+
+  lines.push(`# Journal checklist: ${guideline.journal} — ${guideline.article_type}`);
+  lines.push("");
+  lines.push(`- Total word count: ${totalWordsCount || "n/a"}`);
+  lines.push(`- Figures mentioned/uploaded: ${figureActual}`);
+  lines.push("");
+  lines.push("## Section word counts");
+  expectedCategories.forEach((category) => {
+    const actual = byCategory[category] || 0;
+    const limit = sectionLimits[category];
+    const detail = limit ? ` (${actual}/${limit} words)` : "";
+    lines.push(`- ${category}: ${actual}${detail}`);
+  });
+
+  lines.push("");
+  lines.push("## Constraints");
+  constraintSummaries.forEach((constraint) => {
+    const statusLabel = constraint.status.label;
+    lines.push(`- ${statusLabel}: ${constraint.label} — ${constraint.detail} (${constraint.limitText})`);
+  });
+
+  return lines.join("\n");
+}
+
+let exportResetHandle = null;
+
+async function exportChecklistMarkdown() {
+  if (!selectedGuideline) return;
+  const markdown = generateChecklistMarkdown(selectedGuideline);
+  const button = els.exportMarkdown;
+
+  const resetLabel = () => {
+    if (button) {
+      button.textContent = "Export checklist as Markdown";
+      button.disabled = false;
+    }
+  };
+
+  const showSuccess = (label) => {
+    if (!button) return;
+    button.textContent = label;
+    button.disabled = false;
+    if (exportResetHandle) clearTimeout(exportResetHandle);
+    exportResetHandle = setTimeout(resetLabel, 2000);
+  };
+
+  const triggerDownload = () => {
+    const blob = new Blob([markdown], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "journal-checklist.md";
+    link.click();
+    URL.revokeObjectURL(url);
+    showSuccess("Downloaded");
+  };
+
+  try {
+    if (button) button.disabled = true;
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(markdown);
+      showSuccess("Copied to clipboard");
+    } else {
+      triggerDownload();
+    }
+  } catch (err) {
+    console.error("Unable to export markdown", err);
+    triggerDownload();
+  }
+}
+
 function populateJournalOptions() {
   if (!els.journalSelect) return;
-  const query = (els.journalFilter.value || "").toLowerCase();
-  filteredGuidelines = guidelines.filter((g) => `${g.journal} ${g.article_type}`.toLowerCase().includes(query));
+  const query = normalizeSearchValue(els.journalFilter.value || "");
+  const matchesQuery = (g) => normalizeSearchValue(`${g.journal} ${g.article_type}`).includes(query);
+  const previousSelection = selectedGuideline;
+  filteredGuidelines = guidelines.filter(matchesQuery);
 
   els.journalSelect.innerHTML = "";
 
@@ -532,21 +784,36 @@ function populateJournalOptions() {
     option.selected = true;
     els.journalSelect.appendChild(option);
     selectedGuideline = null;
+    renderJournalSummary();
     renderChangeResults();
     return;
   }
 
+  const groups = new Map();
   filteredGuidelines.forEach((entry, idx) => {
+    if (!groups.has(entry.journal)) {
+      const optgroup = document.createElement("optgroup");
+      optgroup.label = entry.journal;
+      groups.set(entry.journal, optgroup);
+    }
     const option = document.createElement("option");
     option.value = String(idx);
-    option.textContent = `${entry.journal} — ${entry.article_type}`;
-    els.journalSelect.appendChild(option);
+    option.dataset.indent = "true";
+    option.textContent = entry.article_type;
+    groups.get(entry.journal).appendChild(option);
   });
 
-  const selectedIndex = Number(els.journalSelect.value || 0);
-  selectedGuideline = filteredGuidelines[selectedIndex] || filteredGuidelines[0];
+  groups.forEach((optgroup) => {
+    els.journalSelect.appendChild(optgroup);
+  });
+
+  const retainedSelection = previousSelection && filteredGuidelines.includes(previousSelection)
+    ? previousSelection
+    : filteredGuidelines[0];
+  selectedGuideline = retainedSelection;
   els.journalSelect.value = String(filteredGuidelines.indexOf(selectedGuideline));
   renderChangeResults();
+  renderJournalSummary();
 }
 
 async function initializeGuidelines() {
@@ -600,12 +867,14 @@ function handleFigureUpload(event) {
     els.figureStatus.textContent = "Figures optional; no uploads yet.";
     event.target.value = "";
     renderAnalysisSummary();
+    renderChangeResults();
     return;
   }
   const names = files.map((f) => f.name).join(", ");
   els.figureStatus.textContent = `${files.length} file${files.length === 1 ? "" : "s"} uploaded: ${names}`;
   event.target.value = "";
   renderAnalysisSummary();
+  renderChangeResults();
 }
 
 function attachEvents() {
@@ -619,6 +888,10 @@ function attachEvents() {
       selectedGuideline = filteredGuidelines[idx];
       renderChangeResults();
     });
+  }
+
+  if (els.exportMarkdown) {
+    els.exportMarkdown.addEventListener("click", exportChecklistMarkdown);
   }
 
   if (els.manuscriptUpload) {
