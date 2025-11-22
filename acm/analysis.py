@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Sequence, Set
 
 from docx import Document
 
@@ -128,7 +128,10 @@ def _required_categories(structure: Optional[str]) -> Set[str]:
 
 
 def _journal_fit(
-    guideline: Guideline, categories: Set[str], total_words: int
+    guideline: Guideline,
+    sections: Sequence[SectionSummary],
+    categories: Set[str],
+    total_words: int,
 ) -> tuple[bool, List[str]]:
     changes: List[str] = []
     required_sections = _required_categories(guideline.structure)
@@ -144,7 +147,32 @@ def _journal_fit(
             f"Reduce word count by {total_words - limit} to meet {limit}-word limit"
         )
 
+    abstract_limit = _parse_word_limit(guideline.abstract_limit)
+    if abstract_limit is not None:
+        abstract_words = next(
+            (section.word_count for section in sections if section.category == "Abstract"),
+            0,
+        )
+        if abstract_words > abstract_limit:
+            changes.append(
+                (
+                    "Abstract exceeds limit: "
+                    f"{abstract_words}/{abstract_limit} words (reduce by {abstract_words - abstract_limit})"
+                )
+            )
+
     return not changes, changes
+
+
+def journal_change_requests(
+    guideline: Guideline, sections: Sequence[SectionSummary]
+) -> List[str]:
+    """Return change requests for ``guideline`` based on manuscript ``sections``."""
+
+    categories = {section.category for section in sections if section.category != "Other"}
+    total_words = sum(section.word_count for section in sections)
+    _, changes = _journal_fit(guideline, sections, categories, total_words)
+    return changes
 
 
 def analyze_manuscript(
@@ -161,7 +189,7 @@ def analyze_manuscript(
     changes_needed: Dict[str, List[str]] = {}
 
     for guideline in all_guidelines:
-        fits, changes = _journal_fit(guideline, categories, total_words)
+        fits, changes = _journal_fit(guideline, sections, categories, total_words)
         if fits:
             accepted.append(guideline.journal)
         elif changes:
@@ -182,4 +210,5 @@ __all__ = [
     "categorize_section",
     "parse_docx_sections",
     "analyze_manuscript",
+    "journal_change_requests",
 ]

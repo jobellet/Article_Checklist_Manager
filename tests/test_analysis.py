@@ -2,7 +2,7 @@ from pathlib import Path
 
 from docx import Document
 
-from acm.analysis import analyze_manuscript, parse_docx_sections
+from acm.analysis import analyze_manuscript, journal_change_requests, parse_docx_sections
 from acm.journal import Guideline
 
 
@@ -57,3 +57,24 @@ def test_analyze_manuscript_matches_guidelines(tmp_path: Path) -> None:
     journal_b_changes = " ".join(result.required_changes["Journal B"])
     assert "Reduce word count" in journal_b_changes
     assert "Discussion" in journal_b_changes
+
+
+def test_journal_change_requests_include_abstract_limit(tmp_path: Path) -> None:
+    doc = Document()
+    doc.add_heading("Abstract", level=1)
+    doc.add_paragraph("This abstract section is intentionally too long for testing.")
+    doc.add_heading("Introduction", level=1)
+    doc.add_paragraph("Intro text")
+    path = tmp_path / "abstract.docx"
+    doc.save(path)
+
+    guideline = Guideline(
+        journal="Journal C",
+        article_type="Research",
+        abstract_limit="5 words",
+    )
+
+    sections = parse_docx_sections(path)
+    changes = journal_change_requests(guideline, sections)
+
+    assert any("Abstract exceeds limit" in change for change in changes)
