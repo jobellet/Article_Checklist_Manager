@@ -1,3 +1,5 @@
+import { loadGuidelines } from "./data/guidelines-loader.js";
+
 const SECTION_KEYWORDS = {
   introduction: "Introduction",
   background: "Introduction",
@@ -349,10 +351,9 @@ function populateJournalOptions() {
   renderChangeResults();
 }
 
-async function loadGuidelines() {
+async function initializeGuidelines() {
   try {
-    const response = await fetch("journal_guidelines.json");
-    guidelines = await response.json();
+    guidelines = await loadGuidelines();
     populateJournalOptions();
   } catch (err) {
     console.error("Failed to load guidelines", err);
@@ -425,5 +426,5 @@ function attachEvents() {
 
 renderAnalysisSummary();
 renderChangeResults();
-loadGuidelines();
+initializeGuidelines();
 attachEvents();
