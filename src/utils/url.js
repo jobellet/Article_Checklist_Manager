@@ -11,9 +11,10 @@
 export function resolveGuidelinesUrl(path) {
   try {
     const isWorker =
-      typeof WorkerGlobalScope !== 'undefined' &&
-      typeof self !== 'undefined' &&
-      self instanceof WorkerGlobalScope;
+      (typeof WorkerGlobalScope !== 'undefined' &&
+        typeof self !== 'undefined' &&
+        self instanceof WorkerGlobalScope) ||
+      (typeof self !== 'undefined' && typeof self.importScripts === 'function');
 
     if (isWorker && self.location?.href) {
       // Workers live under /validate/, so hop up one directory to the app root.
