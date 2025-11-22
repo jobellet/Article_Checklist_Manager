@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.env
+.venv
+venv/
+env/
+.cache/
+.pytest_cache/
+node_modules/
+.DS_Store
+npm-debug.log*
+.ipynb_checkpoints/
