@@ -3,147 +3,76 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Article Checklist Manager (Web)</title>
+    <title>Article Checklist Manager</title>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <link rel="stylesheet" href="styles.css" />
   </head>
-<body>
-  <header class="hero">
-    <div>
-      <p class="eyebrow">Article Checklist Manager</p>
-      <h1>Web Checklist Playground</h1>
-      <p class="lede">
-        Start by uploading a manuscript. We only reveal controls for the sections that actually exist so the
-        interface stays focused on your document.
-      </p>
-      <div class="actions">
-        <label class="file-button">
-          <input
-            id="manuscript-upload"
-            type="file"
-            accept=".json,application/json,.doc,.docx,.odt,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text"
-          />
-          <span>Upload manuscript</span>
-        </label>
-        <button id="reset-demo" type="button">Load demo project</button>
-        <button id="export-json" type="button" disabled>Export JSON</button>
+  <body>
+    <header class="hero">
+      <div class="hero__copy">
+        <p class="eyebrow">Article Checklist Manager</p>
+        <h1>Simple journal-fit assistant</h1>
+        <p class="lede">
+          Use the graphical interface to upload your manuscript and figures, pick the target journal, and see exactly what must
+          change to meet the submission guidelines.
+        </p>
+        <div class="actions">
+          <label class="file-button">
+            <input id="manuscript-upload" type="file" accept=".docx" />
+            <span>Upload manuscript (.docx)</span>
+          </label>
+          <label class="file-button">
+            <input id="figure-upload" type="file" accept="image/*,.pdf" multiple />
+            <span>Upload figures</span>
+          </label>
+        </div>
+        <div class="upload-status">
+          <p class="label">Uploads</p>
+          <div class="grid grid--two">
+            <div class="info-card">
+              <p class="muted">Manuscript</p>
+              <p id="manuscript-status">No manuscript uploaded yet.</p>
+            </div>
+            <div class="info-card">
+              <p class="muted">Figures</p>
+              <p id="figure-status">No figures uploaded yet.</p>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="summary">
-      <p class="label">Project</p>
-      <input id="project-name" aria-label="Project name" />
-      <p class="label">Overall progress</p>
-      <div class="progress">
-        <div id="overall-bar" class="progress__bar"></div>
+      <div class="summary">
+        <p class="label">Manuscript snapshot</p>
+        <div id="analysis-summary" class="info-card">
+          <p class="muted">Upload a .docx file to extract sections and word counts.</p>
+        </div>
       </div>
-      <p id="overall-percent" class="percent">0%</p>
-    </div>
-  </header>
+    </header>
 
-  <main class="layout">
-    <section class="panel" id="tasks-panel">
-      <div class="panel__header">
-        <h2>Tasks</h2>
-        <form id="new-task-form" class="inline-form">
-          <input id="new-task-name" type="text" placeholder="Add a task" required />
-          <button type="submit">Add</button>
-        </form>
-      </div>
-      <div id="empty-state" class="empty muted">
-        <p>Upload a document (.doc, .docx, .odt, or JSON) or load the demo project to begin.</p>
-      </div>
-      <div id="tasks" class="tasks"></div>
-    </section>
-
-    <section class="panel" id="setup-panel">
-      <div class="panel__header">
-        <h2>Upload &amp; setup</h2>
-      </div>
-      <p class="muted">
-        Upload a manuscript (.doc, .docx, .odt) or a JSON project. We will only show parameters that match what
-        you provide.
-      </p>
-      <div id="file-summary" class="info-card">
-        <p class="label">Current file</p>
-        <p id="file-status" class="muted">No file uploaded yet.</p>
-        <p id="file-hint" class="muted"></p>
-      </div>
-
-      <div id="journal-checker" class="stack hidden">
+    <main class="layout">
+      <section class="panel">
         <div class="panel__header">
-          <h3>Journal fit</h3>
+          <h2>Journal selection</h2>
         </div>
         <p class="muted">
-          Upload a manuscript to unlock journal-specific checks. Select a journal to see what needs to change
-          (word limits, missing sections, and more).
+          Type a keyword to narrow down the list, pick a journal option, and we will list the changes needed to fit its
+          guidelines.
         </p>
-        <div class="grid grid--two">
+        <div class="grid grid--two align-end">
+          <label class="stack" for="journal-filter">
+            <span class="label">Filter journals</span>
+            <input id="journal-filter" type="text" placeholder="Start typing to filter" />
+          </label>
           <label class="stack" for="journal-select">
             <span class="label">Journal</span>
             <select id="journal-select"></select>
           </label>
-          <label class="stack" for="article-type-select">
-            <span class="label">Article type</span>
-            <select id="article-type-select"></select>
-          </label>
         </div>
-
-        <div id="analysis-summary" class="info-card">
-          <p class="label">Manuscript snapshot</p>
-          <p class="muted">Upload a .docx file to extract sections and word counts.</p>
-        </div>
-
         <div id="change-results" class="stack muted">
-          <p>Select a journal to see change requests.</p>
+          <p>Upload a manuscript and select a journal to see required changes.</p>
         </div>
-      </div>
+      </section>
+    </main>
 
-      <div id="section-picker" class="section-picker hidden">
-        <p class="label">Sections in this document</p>
-        <p class="muted">Select only the sections that exist so we can hide everything else.</p>
-        <div id="section-options" class="chip-grid"></div>
-        <div class="actions">
-          <button id="apply-sections" type="button">Build checklist</button>
-          <button id="clear-sections" type="button" class="secondary">Clear selection</button>
-        </div>
-      </div>
-
-      <div id="json-tools" class="stack hidden">
-        <div class="panel__header">
-          <h3>Advanced: JSON</h3>
-          <button id="copy-json" type="button">Copy to clipboard</button>
-        </div>
-        <p class="muted">Import an existing JSON project or fine-tune the generated one below.</p>
-        <label for="raw-json" class="label">Raw project JSON</label>
-        <textarea id="raw-json" rows="12" aria-label="Raw project JSON"></textarea>
-        <div class="actions">
-          <button id="apply-json" type="button">Apply JSON</button>
-          <label class="file-button">
-            <input id="import-json-file" type="file" accept="application/json,.json" />
-            <span>Import JSON</span>
-          </label>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <template id="task-template">
-    <article class="task">
-      <div class="task__header">
-        <div class="task__title"></div>
-        <div class="task__controls"></div>
-      </div>
-      <div class="task__progress">
-        <div class="progress">
-          <div class="progress__bar"></div>
-        </div>
-        <span class="percent"></span>
-      </div>
-      <div class="task__actions"></div>
-      <div class="task__children"></div>
-    </article>
-  </template>
-
-  <script type="module" src="app.js"></script>
-</body>
+    <script type="module" src="app.js"></script>
+  </body>
 </html>
