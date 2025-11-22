@@ -1,5 +1,8 @@
-import typer
 from pathlib import Path
+import subprocess
+import sys
+
+import typer
 from .domain import ArticleProject, TaskNode
 from .progress import render_tree
 
@@ -201,6 +204,14 @@ def analyze_docx(file: Path):
         for journal, changes in result.required_changes.items():
             for change in changes:
                 typer.echo(f"- {journal}: {change}")
+
+
+@app.command()
+def gui():
+    """Launch the Streamlit-based GUI for uploads and automated checks."""
+
+    script = Path(__file__).parent / "gui.py"
+    subprocess.run([sys.executable, "-m", "streamlit", "run", str(script)], check=True)
 
 
 if __name__ == "__main__":
