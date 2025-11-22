@@ -7,13 +7,6 @@
     "required": [
       "journal",
       "article_type",
-      "title_limit",
-      "abstract_limit",
-      "word_limit",
-      "figure_limit",
-      "reference_limit",
-      "structure",
-      "other_requirements",
       "last_accessed"
     ],
     "properties": {
@@ -21,12 +14,28 @@
       "article_type": { "type": "string" },
       "title_limit": { "type": "string" },
       "abstract_limit": { "type": "string" },
-      "word_limit": { "type": "string" },
-      "figure_limit": { "type": "string" },
-      "reference_limit": { "type": "string" },
+      "word_limit": { "type": ["string", "number"] },
+      "figure_limit": { "type": ["string", "number"] },
+      "reference_limit": { "type": ["string", "number"] },
       "structure": { "type": "string" },
-      "other_requirements": { "type": "string" },
-      "last_accessed": { "type": "string" }
+      "other_requirements": {
+        "oneOf": [
+          { "type": "string" },
+          { "type": "array", "items": { "type": "string" } }
+        ]
+      },
+      "last_accessed": { "type": "string" },
+      "significance_statement_limit": { "type": "string" },
+      "article_processing_charge": { "type": ["string", "number"] },
+      "mission_and_policies": {
+        "type": "object",
+        "additionalProperties": { "type": "string" }
+      },
+      "introduction_limit": { "type": ["string", "number"] },
+      "discussion_limit": { "type": ["string", "number"] },
+      "methods_limit": { "type": ["string", "number"] },
+      "results_limit": { "type": ["string", "number"] },
+      "conclusion_limit": { "type": ["string", "number"] }
     },
     "additionalProperties": false
   }
