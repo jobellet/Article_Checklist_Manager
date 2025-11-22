@@ -37,14 +37,18 @@ export function writeGuidelinesCache(data, version = CACHE_VERSION) {
   const storage = getStorage();
   if (!storage) return;
 
-  storage.setItem(
-    CACHE_KEY,
-    JSON.stringify({
-      version,
-      timestamp: Date.now(),
-      data,
-    })
-  );
+  try {
+    storage.setItem(
+      CACHE_KEY,
+      JSON.stringify({
+        version,
+        timestamp: Date.now(),
+        data,
+      })
+    );
+  } catch (error) {
+    // Ignore storage write failures so fetching can still succeed when storage is unavailable.
+  }
 }
 
 export function clearGuidelinesCache() {
