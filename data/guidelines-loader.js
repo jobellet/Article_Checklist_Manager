@@ -1,14 +1,34 @@
-import { CACHE_TTL_MS, CACHE_VERSION, readCachedGuidelines, writeGuidelinesCache } from "./guidelines-cache.js";
+/** @typedef {import('./guideline-types.js').Guideline} Guideline */
+import {
+  CACHE_TTL_MS,
+  CACHE_VERSION,
+  readCachedGuidelines,
+  writeGuidelinesCache,
+} from './guidelines-cache.js';
 
-const DEFAULT_URL = "journal_guidelines.json";
+const DEFAULT_URL = 'journal_guidelines.json';
 const DEFAULT_RETRIES = 3;
 const DEFAULT_BACKOFF_MS = 300;
 
+/**
+ * Wait for the specified duration.
+ * @param {number} ms
+ * @returns {Promise<void>}
+ */
 async function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchWithRetry(url, { retries = DEFAULT_RETRIES, backoffMs = DEFAULT_BACKOFF_MS } = {}) {
+/**
+ * Fetch JSON data with retry logic.
+ * @param {string} url
+ * @param {{ retries?: number, backoffMs?: number }} [options]
+ * @returns {Promise<unknown>}
+ */
+async function fetchWithRetry(
+  url,
+  { retries = DEFAULT_RETRIES, backoffMs = DEFAULT_BACKOFF_MS } = {},
+) {
   let attempt = 0;
   let lastError = null;
 
@@ -16,7 +36,9 @@ async function fetchWithRetry(url, { retries = DEFAULT_RETRIES, backoffMs = DEFA
     try {
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`Failed to fetch guidelines (status ${response.status})`);
+        throw new Error(
+          `Failed to fetch guidelines (status ${response.status})`,
+        );
       }
       return await response.json();
     } catch (error) {
@@ -33,8 +55,19 @@ async function fetchWithRetry(url, { retries = DEFAULT_RETRIES, backoffMs = DEFA
   throw lastError;
 }
 
+/**
+ * Load guidelines from cache or fetch them remotely.
+ * @param {string} [url]
+ * @param {{ cacheVersion?: number, cacheTtlMs?: number, skipCache?: boolean, retries?: number, backoffMs?: number }} [options]
+ * @returns {Promise<Guideline[]>}
+ */
 export async function loadGuidelines(url = DEFAULT_URL, options = {}) {
-  const { cacheVersion = CACHE_VERSION, cacheTtlMs = CACHE_TTL_MS, skipCache = false, ...fetchOptions } = options;
+  const {
+    cacheVersion = CACHE_VERSION,
+    cacheTtlMs = CACHE_TTL_MS,
+    skipCache = false,
+    ...fetchOptions
+  } = options;
 
   if (!skipCache) {
     const cached = readCachedGuidelines(cacheVersion, cacheTtlMs);
@@ -45,8 +78,8 @@ export async function loadGuidelines(url = DEFAULT_URL, options = {}) {
 
   const data = await fetchWithRetry(url, fetchOptions);
   if (!Array.isArray(data)) {
-    throw new Error("Unexpected guidelines response format");
+    throw new Error('Unexpected guidelines response format');
   }
   writeGuidelinesCache(data, cacheVersion);
-  return data;
+  return /** @type {Guideline[]} */ (data);
 }

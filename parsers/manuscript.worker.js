@@ -1,49 +1,11 @@
-importScripts("https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js");
+import { detectSectionCategory } from '../src/utils/section-utils.js';
+import { countWords } from '../src/utils/text-utils.js';
 
-const SECTION_PATTERNS = [
-  { category: "Abstract", patterns: [/\babstract\b/i] },
-  { category: "Significance Statement", patterns: [/\bsignificance statement\b/i, /\bimpact statement\b/i, /\bsignificance\b/i] },
-  { category: "Introduction", patterns: [/\bintroduction\b/i, /\bbackground\b/i] },
-  {
-    category: "Methods",
-    patterns: [
-      /\bmaterials?\s*(?:&|and)\s*methods?\b/i,
-      /\bmethods?\b/i,
-      /\bmethodology\b/i,
-      /\bapproach\b/i,
-    ],
-  },
-  { category: "Results", patterns: [/\bresults?\b/i] },
-  { category: "Discussion", patterns: [/\bdiscussion\b/i] },
-  { category: "Conclusion", patterns: [/\bconclusions?\b/i] },
-];
-
-function normalizeSectionTitle(title) {
-  return (title || "")
-    .replace(/^[^A-Za-z0-9]+/, "")
-    .replace(/[^A-Za-z0-9&]+/g, " ")
-    .toLowerCase()
-    .trim();
-}
-
-function categorizeSection(title) {
-  const normalized = normalizeSectionTitle(title);
-  if (!normalized) return "Other";
-  for (const { category, patterns } of SECTION_PATTERNS) {
-    if (patterns.some((pattern) => pattern.test(normalized))) {
-      return category;
-    }
-  }
-  return "Other";
-}
-
-function countWords(text) {
-  return text.split(/\s+/).filter(Boolean).length;
-}
+importScripts('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
 
 function ensureNotCancelled(token) {
   if (token?.cancelled) {
-    const error = new DOMException("Parsing cancelled", "AbortError");
+    const error = new DOMException('Parsing cancelled', 'AbortError');
     error.isCancellation = true;
     throw error;
   }
@@ -51,19 +13,19 @@ function ensureNotCancelled(token) {
 
 async function parseDocxFile(file, reportProgress, token) {
   ensureNotCancelled(token);
-  if (!self.JSZip) throw new Error("JSZip is unavailable in this browser.");
-  reportProgress("Reading .docx file", 0.05);
+  if (!self.JSZip) throw new Error('JSZip is unavailable in this browser.');
+  reportProgress('Reading .docx file', 0.05);
   const buffer = await file.arrayBuffer();
   ensureNotCancelled(token);
-  reportProgress("Extracting document", 0.15);
+  reportProgress('Extracting document', 0.15);
   const zip = await self.JSZip.loadAsync(buffer);
   ensureNotCancelled(token);
-  reportProgress("Parsing document XML", 0.25);
-  const documentXml = await zip.file("word/document.xml").async("string");
+  reportProgress('Parsing document XML', 0.25);
+  const documentXml = await zip.file('word/document.xml').async('string');
   ensureNotCancelled(token);
   const parser = new DOMParser();
-  const xml = parser.parseFromString(documentXml, "application/xml");
-  const paragraphs = Array.from(xml.getElementsByTagName("w:p"));
+  const xml = parser.parseFromString(documentXml, 'application/xml');
+  const paragraphs = Array.from(xml.getElementsByTagName('w:p'));
 
   const sections = [];
   const textContent = [];
@@ -71,14 +33,15 @@ async function parseDocxFile(file, reportProgress, token) {
   let wordCount = 0;
 
   const getText = (p) =>
-    Array.from(p.getElementsByTagName("w:t"))
+    Array.from(p.getElementsByTagName('w:t'))
       .map((t) => t.textContent)
-      .join("")
+      .join('')
       .trim();
 
   const isHeading = (p) =>
-    Array.from(p.getElementsByTagName("w:pStyle"))
-      .some((s) => s.getAttribute("w:val")?.startsWith("Heading"));
+    Array.from(p.getElementsByTagName('w:pStyle')).some((s) =>
+      s.getAttribute('w:val')?.startsWith('Heading'),
+    );
 
   const total = paragraphs.length || 1;
   paragraphs.forEach((p, idx) => {
@@ -92,7 +55,7 @@ async function parseDocxFile(file, reportProgress, token) {
           sections.push({
             title: currentTitle,
             word_count: wordCount,
-            category: categorizeSection(currentTitle),
+            category: detectSectionCategory(currentTitle),
           });
         }
         currentTitle = text;
@@ -104,7 +67,7 @@ async function parseDocxFile(file, reportProgress, token) {
 
     if (idx % 25 === 0) {
       const progress = 0.25 + (idx / total) * 0.65;
-      reportProgress("Analyzing document structure", Math.min(progress, 0.9));
+      reportProgress('Analyzing document structure', Math.min(progress, 0.9));
     }
   });
 
@@ -112,29 +75,44 @@ async function parseDocxFile(file, reportProgress, token) {
     const totalWords = paragraphs
       .map(getText)
       .filter(Boolean)
-      .reduce((acc, value) => acc + value.split(/\s+/).filter(Boolean).length, 0);
-    reportProgress("Finishing analysis", 0.95);
-    return { sections: [{ title: "Document", word_count: totalWords, category: "Other" }], textContent: textContent.join("\n") };
+      .reduce(
+        (acc, value) => acc + value.split(/\s+/).filter(Boolean).length,
+        0,
+      );
+    reportProgress('Finishing analysis', 0.95);
+    return {
+      sections: [
+        { title: 'Document', word_count: totalWords, category: 'Other' },
+      ],
+      textContent: textContent.join('\n'),
+    };
   }
 
-  sections.push({ title: currentTitle, word_count: wordCount, category: categorizeSection(currentTitle) });
-  reportProgress("Finishing analysis", 0.95);
-  return { sections, textContent: textContent.join("\n") };
+  sections.push({
+    title: currentTitle,
+    word_count: wordCount,
+    category: detectSectionCategory(currentTitle),
+  });
+  reportProgress('Finishing analysis', 0.95);
+  return { sections, textContent: textContent.join('\n') };
 }
 
 async function parsePlainTextFile(file, reportProgress, token) {
   ensureNotCancelled(token);
-  reportProgress("Reading text file", 0.1);
+  reportProgress('Reading text file', 0.1);
   const text = await file.text();
   ensureNotCancelled(token);
   const words = countWords(text);
-  reportProgress("Finishing analysis", 0.95);
-  return { sections: [{ title: file.name, word_count: words, category: "Other" }], textContent: text };
+  reportProgress('Finishing analysis', 0.95);
+  return {
+    sections: [{ title: file.name, word_count: words, category: 'Other' }],
+    textContent: text,
+  };
 }
 
 async function parseMarkdownFile(file, reportProgress, token) {
   ensureNotCancelled(token);
-  reportProgress("Reading markdown", 0.1);
+  reportProgress('Reading markdown', 0.1);
   const text = await file.text();
   ensureNotCancelled(token);
   const lines = text.split(/\r?\n/);
@@ -144,10 +122,14 @@ async function parseMarkdownFile(file, reportProgress, token) {
 
   const flushSection = () => {
     if (buffer.length === 0) return;
-    const content = buffer.join(" ").trim();
+    const content = buffer.join(' ').trim();
     if (!content) return;
     const title = currentTitle || file.name;
-    sections.push({ title, word_count: countWords(content), category: categorizeSection(title) });
+    sections.push({
+      title,
+      word_count: countWords(content),
+      category: detectSectionCategory(title),
+    });
     buffer = [];
   };
 
@@ -163,15 +145,20 @@ async function parseMarkdownFile(file, reportProgress, token) {
 
     if (idx % 50 === 0) {
       const progress = 0.1 + (idx / (lines.length || 1)) * 0.75;
-      reportProgress("Scanning markdown headings", Math.min(progress, 0.9));
+      reportProgress('Scanning markdown headings', Math.min(progress, 0.9));
     }
   });
 
   flushSection();
-  reportProgress("Finishing analysis", 0.95);
+  reportProgress('Finishing analysis', 0.95);
 
   if (!sections.length) {
-    return { sections: [{ title: file.name, word_count: countWords(text), category: "Other" }], textContent: text };
+    return {
+      sections: [
+        { title: file.name, word_count: countWords(text), category: 'Other' },
+      ],
+      textContent: text,
+    };
   }
 
   return { sections, textContent: text };
@@ -179,60 +166,88 @@ async function parseMarkdownFile(file, reportProgress, token) {
 
 async function parseManuscriptFile(file, reportProgress, token) {
   const progressReporter = reportProgress || (() => {});
-  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
   switch (ext) {
-    case "docx":
+    case 'docx':
       return parseDocxFile(file, progressReporter, token);
-    case "txt":
+    case 'txt':
       return parsePlainTextFile(file, progressReporter, token);
-    case "md":
-    case "markdown":
+    case 'md':
+    case 'markdown':
       return parseMarkdownFile(file, progressReporter, token);
     default:
-      throw new Error(`Unsupported file type: .${ext}. Upload .docx, .txt, or .md/.markdown files.`);
+      throw new Error(
+        `Unsupported file type: .${ext}. Upload .docx, .txt, or .md/.markdown files.`,
+      );
   }
 }
 
 let currentTask = null;
 
-self.addEventListener("message", async (event) => {
+self.addEventListener('message', async (event) => {
   const { file, type, requestId } = event.data || {};
 
-  if (type === "cancel") {
+  if (type === 'cancel') {
     if (currentTask) {
       currentTask.cancelled = true;
-      self.postMessage({ type: "manuscript:cancelled", requestId: currentTask.id });
+      self.postMessage({
+        type: 'manuscript:cancelled',
+        requestId: currentTask.id,
+      });
     }
     return;
   }
 
   if (!(file instanceof File)) {
-    self.postMessage({ type: "manuscript:error", error: "Invalid file received.", requestId });
+    self.postMessage({
+      type: 'manuscript:error',
+      error: 'Invalid file received.',
+      requestId,
+    });
     return;
   }
 
-  const task = { id: requestId || `request-${Date.now()}-${Math.random().toString(16).slice(2)}`, cancelled: false };
+  const task = {
+    id:
+      requestId ||
+      `request-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    cancelled: false,
+  };
   currentTask = task;
 
   const reportProgress = (message, progress) => {
     if (currentTask !== task || task.cancelled) return;
-    self.postMessage({ type: "manuscript:progress", message, progress, requestId: task.id });
+    self.postMessage({
+      type: 'manuscript:progress',
+      message,
+      progress,
+      requestId: task.id,
+    });
   };
 
   try {
-    reportProgress("Starting analysis", 0);
+    reportProgress('Starting analysis', 0);
     const parsed = await parseManuscriptFile(file, reportProgress, task);
     if (task.cancelled) {
-      self.postMessage({ type: "manuscript:cancelled", requestId: task.id });
+      self.postMessage({ type: 'manuscript:cancelled', requestId: task.id });
       return;
     }
-    self.postMessage({ type: "manuscript:parsed", data: parsed, requestId: task.id });
+    self.postMessage({
+      type: 'manuscript:parsed',
+      data: parsed,
+      requestId: task.id,
+    });
   } catch (err) {
-    if (task.cancelled || err?.isCancellation || err?.name === "AbortError") {
-      self.postMessage({ type: "manuscript:cancelled", requestId: task.id });
+    if (task.cancelled || err?.isCancellation || err?.name === 'AbortError') {
+      self.postMessage({ type: 'manuscript:cancelled', requestId: task.id });
     } else {
-      const message = err instanceof Error ? err.message : "An unknown error occurred.";
-      self.postMessage({ type: "manuscript:error", error: message, requestId: task.id });
+      const message =
+        err instanceof Error ? err.message : 'An unknown error occurred.';
+      self.postMessage({
+        type: 'manuscript:error',
+        error: message,
+        requestId: task.id,
+      });
     }
   } finally {
     if (currentTask === task) {
