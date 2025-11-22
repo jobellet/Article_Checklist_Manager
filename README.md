@@ -3,6 +3,14 @@
 A lightweight graphical assistant for checking manuscript readiness. Upload a manuscript and optional figure files, pick the
 submission journal, and see the exact changes required to satisfy the journal guidelines—all from the web interface.
 
+🌐 Live site: https://article-checklist-manager.streamlit.app/
+
+## 🐍 Python GUI installation
+1. Create and activate a Python 3.9+ virtual environment.
+2. Install dependencies: `pip install .` (from the repository root).
+3. Launch the Streamlit interface: `python -m acm.cli gui`.
+4. Open the displayed local URL in your browser and upload your manuscript/figures to begin.
+
 ## 🎨 What the interface does
 - **Upload manuscript (.docx, .txt, .md):** Parse sections and word counts directly in the browser.
 - **Upload figures (optional):** Attach standalone figure files when they are not embedded in the manuscript. The upload is
