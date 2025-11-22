@@ -16,6 +16,7 @@ const SECTION_KEYWORDS = {
   conclusion: "Conclusion",
   conclusions: "Conclusion",
   abstract: "Abstract",
+  significance: "Significance Statement",
 };
 
 let guidelines = [];
@@ -338,9 +339,20 @@ function renderAnalysisSummary() {
 
 function parseWordLimit(limit) {
   if (!limit) return null;
-  const match = limit.match(/(\d[\d,]*)/);
-  if (!match) return null;
-  return Number(match[1].replace(/,/g, ""));
+  const lower = limit.toLowerCase();
+  const parseNumber = (value) => Number(value.replace(/,/g, ""));
+
+  const withWords = [...lower.matchAll(/(\d[\d,]*)\s*(?:word|words)/g)].map((m) => parseNumber(m[1])).filter(Boolean);
+  if (withWords.length) {
+    return Math.max(...withWords);
+  }
+
+  const allNumbers = [...lower.matchAll(/(\d[\d,]*)/g)].map((m) => parseNumber(m[1])).filter(Boolean);
+  if (allNumbers.length) {
+    return Math.max(...allNumbers);
+  }
+
+  return null;
 }
 
 function requiredCategories(structure) {
