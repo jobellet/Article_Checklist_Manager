@@ -71,11 +71,16 @@ function countFigureMentionsFromText(text) {
   return count;
 }
 
-async function parseDocxFile(file) {
+async function parseDocxFile(file, onProgress = () => {}) {
+  const reportProgress = onProgress || (() => {});
   if (!window.JSZip) throw new Error("JSZip is unavailable in this browser.");
+  reportProgress("Reading .docx file", 0.05);
   const buffer = await file.arrayBuffer();
+  reportProgress("Extracting document", 0.15);
   const zip = await window.JSZip.loadAsync(buffer);
+  reportProgress("Parsing document XML", 0.25);
   const documentXml = await zip.file("word/document.xml").async("string");
+  reportProgress("Analyzing document structure", 0.35);
   const parser = new DOMParser();
   const xml = parser.parseFromString(documentXml, "application/xml");
   const paragraphs = Array.from(xml.getElementsByTagName("w:p"));
@@ -109,7 +114,7 @@ async function parseDocxFile(file) {
     }
   };
 
-  for (const p of paragraphs) {
+  for (const [idx, p] of paragraphs.entries()) {
     const text = getText(p);
     if (!text) continue;
     textContent.push(text);
@@ -123,6 +128,11 @@ async function parseDocxFile(file) {
     } else {
       preambleWords += text.split(/\s+/).filter(Boolean).length;
     }
+
+    if (idx % 25 === 0) {
+      const progress = 0.35 + (idx / (paragraphs.length || 1)) * 0.55;
+      reportProgress("Analyzing document structure", Math.min(progress, 0.9));
+    }
   }
 
   closeSections(0);
@@ -131,16 +141,22 @@ async function parseDocxFile(file) {
     sections.push({ title: file.name, word_count: preambleWords, category: "Other" });
   }
 
+  reportProgress("Finishing analysis", 0.95);
   return { sections: sections.length ? sections : [{ title: file.name, word_count: 0, category: "Other" }], textContent: textContent.join("\n") };
 }
 
-async function parsePlainTextFile(file) {
+async function parsePlainTextFile(file, onProgress = () => {}) {
+  const reportProgress = onProgress || (() => {});
+  reportProgress("Reading text file", 0.1);
   const text = await file.text();
   const words = countWords(text);
+  reportProgress("Finishing analysis", 0.95);
   return { sections: [{ title: file.name, word_count: words, category: "Other" }], textContent: text };
 }
 
-async function parseMarkdownFile(file) {
+async function parseMarkdownFile(file, onProgress = () => {}) {
+  const reportProgress = onProgress || (() => {});
+  reportProgress("Reading markdown", 0.1);
   const text = await file.text();
   const lines = text.split(/\r?\n/);
   const sections = [];
@@ -167,7 +183,7 @@ async function parseMarkdownFile(file) {
     }
   };
 
-  lines.forEach((line) => {
+  lines.forEach((line, idx) => {
     const heading = line.match(/^(#+)\s+(.*)$/);
     if (heading) {
       flushTextToCurrent();
@@ -177,10 +193,17 @@ async function parseMarkdownFile(file) {
     } else {
       buffer.push(line);
     }
+
+    if (idx % 50 === 0) {
+      const progress = 0.1 + (idx / (lines.length || 1)) * 0.75;
+      reportProgress("Scanning markdown headings", Math.min(progress, 0.9));
+    }
   });
 
   flushTextToCurrent();
   closeSections(0);
+
+  reportProgress("Finishing analysis", 0.95);
 
   if (!sections.length && preambleWords) {
     return { sections: [{ title: file.name, word_count: preambleWords, category: "Other" }], textContent: text };
@@ -189,35 +212,44 @@ async function parseMarkdownFile(file) {
   return { sections: sections.length ? sections : [{ title: file.name, word_count: 0, category: "Other" }], textContent: text };
 }
 
-async function parseManuscriptFileLocally(file) {
+async function parseManuscriptFileLocally(file, onProgress) {
   const ext = (file.name.split(".").pop() || "").toLowerCase();
   switch (ext) {
     case "docx":
-      return parseDocxFile(file);
+      return parseDocxFile(file, onProgress);
     case "txt":
-      return parsePlainTextFile(file);
+      return parsePlainTextFile(file, onProgress);
     case "md":
     case "markdown":
-      return parseMarkdownFile(file);
+      return parseMarkdownFile(file, onProgress);
     default:
       throw new Error(`Unsupported file type: .${ext}. Upload .docx, .txt, or .md/.markdown files.`);
   }
 }
 
-function parseManuscriptFile(file) {
+function parseManuscriptFile(file, onProgress) {
+  const progressCallback = onProgress || (() => {});
   if (!manuscriptWorker) {
-    return parseManuscriptFileLocally(file);
+    return parseManuscriptFileLocally(file, progressCallback);
   }
 
   return new Promise((resolve, reject) => {
+    const requestId = `request-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
     const handleMessage = (event) => {
-      const { type, data, error } = event.data || {};
+      const { type, data, error, message, progress, requestId: incomingId } = event.data || {};
+      if (incomingId !== requestId) return;
       if (type === "manuscript:parsed") {
         cleanup();
         resolve(data);
       } else if (type === "manuscript:error") {
         cleanup();
         reject(new Error(error || "Unable to parse manuscript."));
+      } else if (type === "manuscript:progress") {
+        progressCallback(message, progress);
+      } else if (type === "manuscript:cancelled") {
+        cleanup();
+        reject(new Error("Parsing cancelled."));
       }
     };
 
@@ -234,10 +266,14 @@ function parseManuscriptFile(file) {
 
     manuscriptWorker.addEventListener("message", handleMessage);
     manuscriptWorker.addEventListener("error", handleError);
-    manuscriptWorker.postMessage({ file });
-  }).catch((err) =>
-    parseManuscriptFileLocally(file).catch((localErr) => Promise.reject(localErr || err))
-  );
+    manuscriptWorker.postMessage({ type: "cancel" });
+    manuscriptWorker.postMessage({ type: "parse", file, requestId });
+  }).catch((err) => {
+    if (err?.message === "Parsing cancelled.") {
+      return Promise.reject(err);
+    }
+    return parseManuscriptFileLocally(file, progressCallback).catch((localErr) => Promise.reject(localErr || err));
+  });
 }
 
 function renderAnalysisSummary() {
@@ -484,8 +520,16 @@ async function handleManuscriptUpload(event) {
   const [file] = event.target.files;
   if (!file) return;
 
+  const updateStatus = (message, progress) => {
+    if (!els.manuscriptStatus) return;
+    const suffix = typeof progress === "number" ? ` (${Math.round(progress * 100)}%)` : "";
+    const label = message ? `${message} — ${file.name}` : `Processing ${file.name}`;
+    els.manuscriptStatus.textContent = `${label}${suffix}`;
+  };
+
   try {
-    const parsed = await parseManuscriptFile(file);
+    updateStatus("Starting analysis", 0);
+    const parsed = await parseManuscriptFile(file, updateStatus);
     manuscriptSections = parsed.sections;
     totalWords = manuscriptSections.reduce((acc, section) => acc + section.word_count, 0);
     figureReferenceCount = countFigureMentionsFromText(parsed.textContent);
@@ -496,7 +540,7 @@ async function handleManuscriptUpload(event) {
     manuscriptSections = [];
     totalWords = 0;
     figureReferenceCount = 0;
-    els.manuscriptStatus.textContent = `Unable to read ${file.name}: ${err.message}`;
+    els.manuscriptStatus.textContent = err.message === "Parsing cancelled." ? `Parsing cancelled for ${file.name}.` : `Unable to read ${file.name}: ${err.message}`;
     renderAnalysisSummary();
     renderChangeResults();
   }
