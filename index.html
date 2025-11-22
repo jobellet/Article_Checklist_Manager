@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Article Checklist Manager (Web)</title>
-  <link rel="stylesheet" href="styles.css" />
-</head>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Article Checklist Manager (Web)</title>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
 <body>
   <header class="hero">
     <div>
@@ -66,6 +67,35 @@
         <p class="label">Current file</p>
         <p id="file-status" class="muted">No file uploaded yet.</p>
         <p id="file-hint" class="muted"></p>
+      </div>
+
+      <div id="journal-checker" class="stack hidden">
+        <div class="panel__header">
+          <h3>Journal fit</h3>
+        </div>
+        <p class="muted">
+          Upload a manuscript to unlock journal-specific checks. Select a journal to see what needs to change
+          (word limits, missing sections, and more).
+        </p>
+        <div class="grid grid--two">
+          <label class="stack" for="journal-select">
+            <span class="label">Journal</span>
+            <select id="journal-select"></select>
+          </label>
+          <label class="stack" for="article-type-select">
+            <span class="label">Article type</span>
+            <select id="article-type-select"></select>
+          </label>
+        </div>
+
+        <div id="analysis-summary" class="info-card">
+          <p class="label">Manuscript snapshot</p>
+          <p class="muted">Upload a .docx file to extract sections and word counts.</p>
+        </div>
+
+        <div id="change-results" class="stack muted">
+          <p>Select a journal to see change requests.</p>
+        </div>
       </div>
 
       <div id="section-picker" class="section-picker hidden">

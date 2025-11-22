@@ -11,9 +11,29 @@ const MANUSCRIPT_SECTION_OPTIONS = [
   "References",
 ];
 
+const SECTION_KEYWORDS = {
+  introduction: "Introduction",
+  background: "Introduction",
+  method: "Methods",
+  methods: "Methods",
+  "materials and methods": "Methods",
+  methodology: "Methods",
+  result: "Results",
+  results: "Results",
+  discussion: "Discussion",
+  conclusion: "Conclusion",
+  conclusions: "Conclusion",
+  abstract: "Abstract",
+};
+
+let guidelines = [];
 let project = null;
 let selectedSections = new Set(MANUSCRIPT_SECTION_OPTIONS.slice(0, 5));
 let fileMeta = { name: "", ext: "", status: "No file uploaded yet.", hint: "" };
+let manuscriptSections = [];
+let totalWords = 0;
+let selectedJournal = "";
+let selectedArticleType = "";
 
 const els = {
   nameInput: document.getElementById("project-name"),
@@ -39,6 +59,11 @@ const els = {
   clearSections: document.getElementById("clear-sections"),
   fileStatus: document.getElementById("file-status"),
   fileHint: document.getElementById("file-hint"),
+  journalChecker: document.getElementById("journal-checker"),
+  journalSelect: document.getElementById("journal-select"),
+  articleTypeSelect: document.getElementById("article-type-select"),
+  analysisSummary: document.getElementById("analysis-summary"),
+  changeResults: document.getElementById("change-results"),
 };
 
 const template = document.getElementById("task-template");
@@ -53,6 +78,262 @@ function updateFileSummary(status, hint = "") {
   fileMeta.hint = hint;
   if (els.fileStatus) els.fileStatus.textContent = status;
   if (els.fileHint) els.fileHint.textContent = hint;
+}
+
+function categorizeSection(title) {
+  const lowered = title.toLowerCase();
+  for (const [key, category] of Object.entries(SECTION_KEYWORDS)) {
+    if (lowered.includes(key)) return category;
+  }
+  return "Other";
+}
+
+function parseWordLimit(limit) {
+  if (!limit) return null;
+  const match = limit.match(/(\d[\d,]*)/);
+  if (!match) return null;
+  return Number(match[1].replace(/,/g, ""));
+}
+
+function requiredCategories(structure) {
+  if (!structure) return new Set();
+  const categories = new Set();
+  const lower = structure.toLowerCase();
+  for (const [key, category] of Object.entries(SECTION_KEYWORDS)) {
+    if (lower.includes(key)) categories.add(category);
+  }
+  return categories;
+}
+
+async function parseDocxSections(file) {
+  if (!window.JSZip) throw new Error("JSZip is unavailable in this browser.");
+  const buffer = await file.arrayBuffer();
+  const zip = await window.JSZip.loadAsync(buffer);
+  const documentXml = await zip.file("word/document.xml").async("string");
+  const parser = new DOMParser();
+  const xml = parser.parseFromString(documentXml, "application/xml");
+  const paragraphs = Array.from(xml.getElementsByTagName("w:p"));
+
+  const sections = [];
+  let currentTitle = null;
+  let wordCount = 0;
+
+  const getText = (p) =>
+    Array.from(p.getElementsByTagName("w:t"))
+      .map((t) => t.textContent)
+      .join("")
+      .trim();
+
+  const isHeading = (p) => {
+    const styleNode = p.getElementsByTagName("w:pStyle")[0];
+    if (!styleNode) return false;
+    const style = styleNode.getAttribute("w:val") || styleNode.getAttribute("val") || "";
+    return style.toLowerCase().startsWith("heading");
+  };
+
+  for (const p of paragraphs) {
+    const text = getText(p);
+    if (!text) continue;
+
+    if (isHeading(p)) {
+      if (currentTitle !== null) {
+        sections.push({
+          title: currentTitle,
+          word_count: wordCount,
+          category: categorizeSection(currentTitle),
+        });
+      }
+      currentTitle = text;
+      wordCount = 0;
+    } else {
+      wordCount += text.split(/\s+/).filter(Boolean).length;
+    }
+  }
+
+  if (currentTitle === null) {
+    const total = paragraphs
+      .map(getText)
+      .filter(Boolean)
+      .reduce((acc, value) => acc + value.split(/\s+/).filter(Boolean).length, 0);
+    return [{ title: "Document", word_count: total, category: "Other" }];
+  }
+
+  sections.push({ title: currentTitle, word_count: wordCount, category: categorizeSection(currentTitle) });
+  return sections;
+}
+
+function renderAnalysisSummary() {
+  if (!els.analysisSummary) return;
+  const summary = els.analysisSummary;
+  summary.innerHTML = "";
+  const heading = document.createElement("p");
+  heading.className = "label";
+  heading.textContent = "Manuscript snapshot";
+  summary.appendChild(heading);
+
+  if (!manuscriptSections.length) {
+    const hint = document.createElement("p");
+    hint.className = "muted";
+    hint.textContent = "Upload a .docx file to extract sections and word counts.";
+    summary.appendChild(hint);
+    return;
+  }
+
+  const stats = document.createElement("div");
+  stats.className = "grid grid--two";
+
+  const sectionsStat = document.createElement("div");
+  sectionsStat.innerHTML = `<p class="muted">Detected sections</p><p class="percent">${manuscriptSections.length}</p>`;
+
+  const wordStat = document.createElement("div");
+  wordStat.innerHTML = `<p class="muted">Total words</p><p class="percent">${totalWords}</p>`;
+
+  stats.appendChild(sectionsStat);
+  stats.appendChild(wordStat);
+  summary.appendChild(stats);
+
+  const pills = document.createElement("div");
+  pills.className = "actions";
+  const categories = new Set(manuscriptSections.map((s) => s.category).filter((c) => c && c !== "Other"));
+  if (!categories.size) {
+    const pill = document.createElement("span");
+    pill.className = "pill";
+    pill.textContent = "No categorized sections detected";
+    pills.appendChild(pill);
+  } else {
+    categories.forEach((category) => {
+      const pill = document.createElement("span");
+      pill.className = "pill";
+      pill.textContent = category;
+      pills.appendChild(pill);
+    });
+  }
+  summary.appendChild(pills);
+}
+
+function renderChangeResults(changes, guideline) {
+  if (!els.changeResults) return;
+  const container = els.changeResults;
+  container.classList.remove("muted");
+  container.innerHTML = "";
+
+  if (!manuscriptSections.length) {
+    container.classList.add("muted");
+    container.innerHTML = "<p>Upload a .docx manuscript to run journal checks.</p>";
+    return;
+  }
+
+  const card = document.createElement("div");
+  card.className = "change-results";
+  const title = document.createElement("h3");
+  title.textContent = guideline ? `${guideline.journal} — ${guideline.article_type}` : "Journal fit";
+  card.appendChild(title);
+
+  if (!guideline) {
+    card.appendChild(document.createTextNode("Select a journal to see change requests."));
+    container.appendChild(card);
+    return;
+  }
+
+  if (!changes.length) {
+    const para = document.createElement("p");
+    para.textContent = "No required changes detected. This manuscript fits the selected journal limits.";
+    card.appendChild(para);
+    container.appendChild(card);
+    return;
+  }
+
+  const list = document.createElement("ol");
+  list.className = "change-results__list";
+  changes.forEach((change) => {
+    const li = document.createElement("li");
+    li.textContent = change;
+    list.appendChild(li);
+  });
+
+  card.appendChild(list);
+  container.appendChild(card);
+}
+
+function evaluateAgainstGuideline(guideline) {
+  const changeList = [];
+  const required = requiredCategories(guideline.structure);
+  const manuscriptCats = new Set(manuscriptSections.map((s) => s.category).filter((c) => c !== "Other"));
+  const missing = [...required].filter((cat) => !manuscriptCats.has(cat)).sort();
+  if (missing.length) {
+    changeList.push(`Add sections covering: ${missing.join(", ")}`);
+  }
+
+  const limit = parseWordLimit(guideline.word_limit);
+  if (limit && totalWords > limit) {
+    changeList.push(`Total word count ${totalWords} exceeds ${limit} limit by ${totalWords - limit} words`);
+  }
+
+  const abstractLimit = parseWordLimit(guideline.abstract_limit);
+  if (abstractLimit) {
+    const abstractSection = manuscriptSections.find((s) => s.category === "Abstract");
+    if (abstractSection && abstractSection.word_count > abstractLimit) {
+      changeList.push(
+        `Abstract ${abstractSection.word_count}/${abstractLimit} words (reduce by ${abstractSection.word_count - abstractLimit})`
+      );
+    }
+  }
+
+  return changeList;
+}
+
+function updateArticleTypes() {
+  if (!els.journalSelect || !els.articleTypeSelect) return;
+  const journal = els.journalSelect.value;
+  const types = guidelines.filter((g) => g.journal === journal).map((g) => g.article_type);
+  els.articleTypeSelect.innerHTML = "";
+  types.forEach((type) => {
+    const option = document.createElement("option");
+    option.value = type;
+    option.textContent = type;
+    els.articleTypeSelect.appendChild(option);
+  });
+  selectedJournal = journal;
+  selectedArticleType = types[0] || "";
+}
+
+function updateJournalResults() {
+  if (!guidelines.length || !els.journalSelect || !els.articleTypeSelect) return;
+  const journal = els.journalSelect.value;
+  const articleType = els.articleTypeSelect.value;
+  selectedJournal = journal;
+  selectedArticleType = articleType;
+  const guideline = guidelines.find((g) => g.journal === journal && g.article_type === articleType);
+  const changes = guideline ? evaluateAgainstGuideline(guideline) : [];
+  renderChangeResults(changes, guideline);
+}
+
+async function loadGuidelines() {
+  try {
+    const response = await fetch("journal_guidelines.json");
+    guidelines = await response.json();
+    if (!els.journalSelect || !els.articleTypeSelect) return;
+    const journals = Array.from(new Set(guidelines.map((g) => g.journal)));
+    els.journalSelect.innerHTML = "";
+    journals.forEach((name) => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      els.journalSelect.appendChild(option);
+    });
+    updateArticleTypes();
+    updateJournalResults();
+  } catch (err) {
+    console.error("Failed to load guidelines", err);
+  }
+}
+
+function resetAnalysis() {
+  manuscriptSections = [];
+  totalWords = 0;
+  toggleHidden(els.journalChecker, true);
+  renderAnalysisSummary();
+  renderChangeResults([], null);
 }
 
 function renderSectionOptions() {
@@ -197,11 +478,12 @@ function loadProjectFromJson(text, filename = "JSON project") {
   project = ArticleProject.fromJSON(text);
   selectedSections.clear();
   toggleHidden(els.sectionPicker, true);
+  resetAnalysis();
   updateFileSummary(`${filename} loaded`, "Checklist populated from JSON.");
   render();
 }
 
-function handleManuscriptUpload(event) {
+async function handleManuscriptUpload(event) {
   const [file] = event.target.files;
   if (!file) return;
 
@@ -219,14 +501,36 @@ function handleManuscriptUpload(event) {
       }
     };
     reader.readAsText(file);
-  } else if (["doc", "docx", "odt"].includes(ext)) {
+  } else if (ext === "docx") {
+    project = null;
+    selectedSections = new Set(MANUSCRIPT_SECTION_OPTIONS.slice(0, 5));
+    toggleHidden(els.sectionPicker, false);
+    try {
+      manuscriptSections = await parseDocxSections(file);
+      totalWords = manuscriptSections.reduce((acc, section) => acc + section.word_count, 0);
+      toggleHidden(els.journalChecker, false);
+      renderAnalysisSummary();
+      updateJournalResults();
+      renderSectionOptions();
+      updateFileSummary(
+        `${file.name} analyzed`,
+        "Section counts extracted. Select a journal to see required changes."
+      );
+    } catch (err) {
+      resetAnalysis();
+      updateFileSummary(`Unable to read ${file.name}`, err.message);
+      alert("Unable to parse manuscript: " + err.message);
+    }
+    render();
+  } else if (["doc", "odt"].includes(ext)) {
+    resetAnalysis();
     project = null;
     selectedSections = new Set(MANUSCRIPT_SECTION_OPTIONS.slice(0, 5));
     renderSectionOptions();
     toggleHidden(els.sectionPicker, false);
     updateFileSummary(
       `${file.name} uploaded`,
-      "Choose the sections that exist to generate the checklist. Parameters stay hidden until you pick them."
+      "Doc and ODT files are supported for checklist building but not automated journal checks yet."
     );
     render();
   } else {
@@ -342,9 +646,22 @@ function attachEvents() {
     selectedSections = new Set();
     renderSectionOptions();
   });
+
+  if (els.journalSelect) {
+    els.journalSelect.addEventListener("change", () => {
+      updateArticleTypes();
+      updateJournalResults();
+    });
+  }
+  if (els.articleTypeSelect) {
+    els.articleTypeSelect.addEventListener("change", updateJournalResults);
+  }
 }
 
 renderSectionOptions();
 updateFileSummary(fileMeta.status, fileMeta.hint);
+resetAnalysis();
+loadGuidelines();
+renderAnalysisSummary();
 attachEvents();
 render();
