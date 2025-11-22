@@ -257,6 +257,129 @@
   "article_processing_charge": "$1250",
   "last_accessed": "2025-07-26"
 },
+
+{
+  "journal": "Nature",
+  "article_type": "Research Article",
+  "title_limit": "Not formally specified (concise and specific)",
+  "abstract_limit": "150 words maximum (unreferenced)",
+  "word_limit": "Main text typically 2,000–3,000 words",
+  "figure_limit": "Up to 5 display items",
+  "reference_limit": "About 50 references",
+  "structure": "Introduction paragraph, Results, Discussion, Online Methods, References",
+  "other_requirements": [
+    "Cover letter explaining significance and broad interest",
+    "Data availability statement required",
+    "Strong preference for source data and reporting checklists"
+  ],
+  "last_accessed": "2025-07-26"
+},
+{
+  "journal": "Nature Neuroscience",
+  "article_type": "Research Article",
+  "abstract_limit": "150 words",
+  "word_limit": "Main text usually ~3,000 words",
+  "figure_limit": "Typically up to 6 figures/tables",
+  "reference_limit": "No strict limit; references should be kept concise",
+  "structure": "Introductory paragraph, Results, Discussion, Online Methods, References",
+  "other_requirements": [
+    "Reporting summary and checklists required",
+    "Data and code availability statements",
+    "Strong encouragement for sharing source data"
+  ],
+  "last_accessed": "2025-07-26"
+},
+{
+  "journal": "Neuron",
+  "article_type": "Short Report",
+  "title_limit": "Not specified",
+  "abstract_limit": "150 words",
+  "word_limit": "Up to 3,000 words",
+  "figure_limit": "Up to 4 figures or tables",
+  "reference_limit": "Not specified",
+  "structure": "Summary (abstract), Introduction, Results, Discussion, STAR Methods, References",
+  "other_requirements": [
+    "Declaration of generative AI use in methods",
+    "STAR Methods format required",
+    "Cover letter should justify brevity"
+  ],
+  "last_accessed": "2025-07-26"
+},
+{
+  "journal": "Journal of Neuroscience",
+  "article_type": "Research Article",
+  "abstract_limit": "250 words",
+  "word_limit": "6,000 words for main text (excluding references, methods, figure legends)",
+  "figure_limit": "Up to 8 figures and 3 tables",
+  "reference_limit": "Not specified",
+  "structure": "Abstract, Significance Statement, Introduction, Materials and Methods, Results, Discussion, References",
+  "other_requirements": [
+    "Significance Statement (120 words) required",
+    "Data/sharing policy compliance required",
+    "Ethics statement required for animal research"
+  ],
+  "last_accessed": "2025-07-26"
+},
+{
+  "journal": "eLife",
+  "article_type": "Research Article",
+  "abstract_limit": "150 words",
+  "word_limit": "No strict limit; concise reporting encouraged",
+  "figure_limit": "Not specified; key figures emphasized",
+  "reference_limit": "No strict limit",
+  "structure": "Abstract, Introduction, Results, Discussion, Materials and Methods, References",
+  "other_requirements": [
+    "Transparent Reporting Form required",
+    "Data and code availability statements",
+    "Preprints encouraged"
+  ],
+  "last_accessed": "2025-07-26"
+},
+{
+  "journal": "PLOS Biology",
+  "article_type": "Research Article",
+  "abstract_limit": "300 words",
+  "word_limit": "No strict limit; typical manuscripts ~7,000 words",
+  "figure_limit": "No strict limit; reasonable for clarity",
+  "reference_limit": "No strict limit",
+  "structure": "Abstract, Introduction, Results, Discussion, Materials and Methods, References",
+  "other_requirements": [
+    "Data availability statement mandatory",
+    "Ethics statement required for animal research",
+    "Suggest suitable editors and reviewers"
+  ],
+  "last_accessed": "2025-07-26"
+},
+{
+  "journal": "PLOS ONE",
+  "article_type": "Research Article",
+  "abstract_limit": "300 words",
+  "word_limit": "No strict limit; concise writing encouraged",
+  "figure_limit": "No strict limit",
+  "reference_limit": "No strict limit",
+  "structure": "Abstract, Introduction, Materials and Methods, Results, Discussion, References",
+  "other_requirements": [
+    "Data availability statement mandatory",
+    "Ethics statement required for animal research",
+    "Adherence to ARRIVE guidelines for animal studies"
+  ],
+  "last_accessed": "2025-07-26"
+},
+{
+  "journal": "Current Biology",
+  "article_type": "Research Article",
+  "abstract_limit": "150 words",
+  "word_limit": "Main text typically ~4,000 words",
+  "figure_limit": "Up to 6 display items",
+  "reference_limit": "No strict limit; concise list encouraged",
+  "structure": "Abstract, Introduction, Results, Discussion, STAR Methods, References",
+  "other_requirements": [
+    "STAR Methods required",
+    "Data and code availability statements",
+    "Graphical abstract encouraged"
+  ],
+  "last_accessed": "2025-07-26"
+},
 {
   "journal": "Journal of Cognitive Neuroscience (JoCN)",
   "article_type": "Preregistered Research Reports",
