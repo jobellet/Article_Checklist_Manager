@@ -1,5 +1,5 @@
 /** @typedef {import('../data/guideline-types.js').Guideline} Guideline */
-import { resolveUrl } from '../src/utils/url-utils.js';
+import { resolveGuidelinesUrl } from '../src/utils/url.js';
 
 const STATUS_PENDING = 'pending';
 const STATUS_SUCCESS = 'success';
@@ -11,12 +11,37 @@ const STATUS_ERROR = 'error';
  * @returns {Promise<unknown>}
  */
 async function fetchJson(path) {
-  const resolved = resolveUrl(path);
+  const resolved = resolveGuidelinesUrl(path);
   const response = await fetch(resolved);
   if (!response.ok) {
     throw new Error(`Failed to fetch ${path} (status ${response.status})`);
   }
   return response.json();
+}
+
+/**
+ * Create a short prefix describing the entry location.
+ * @param {Guideline | Record<string, unknown>} item
+ * @param {number} index
+ * @returns {string}
+ */
+function formatEntryPrefix(item, index) {
+  const details = [];
+  if (typeof item === 'object' && item !== null) {
+    if (typeof item.journal === 'string' && item.journal.trim()) {
+      details.push(item.journal.trim());
+    }
+    if (
+      typeof item.article_type === 'string' &&
+      item.article_type.trim()
+    ) {
+      details.push(item.article_type.trim());
+    }
+  }
+
+  return details.length
+    ? `Entry ${index} (${details.join(', ')})`
+    : `Entry ${index}`;
 }
 
 /**
@@ -28,11 +53,12 @@ async function fetchJson(path) {
  */
 function collectItemErrors(item, schema, index) {
   const errors = [];
+  const prefix = formatEntryPrefix(item, index);
   const required = schema.required || [];
 
   for (const key of required) {
     if (!(key in item)) {
-      errors.push(`Entry ${index}: missing required property "${key}".`);
+      errors.push(`${prefix}: missing required property "${key}".`);
     }
   }
 
@@ -42,11 +68,11 @@ function collectItemErrors(item, schema, index) {
       const expectedType = properties[key].type;
       if (expectedType && typeof value !== expectedType) {
         errors.push(
-          `Entry ${index}: property "${key}" should be ${expectedType}, received ${typeof value}.`,
+          `${prefix}: property "${key}" should be ${expectedType}, received ${typeof value}.`,
         );
       }
     } else if (schema.additionalProperties === false) {
-      errors.push(`Entry ${index}: unexpected property "${key}".`);
+      errors.push(`${prefix}: unexpected property "${key}".`);
     }
   }
 
@@ -69,7 +95,7 @@ function validateGuidelines(data, schema) {
 
   data.forEach((item, index) => {
     if (typeof item !== 'object' || item === null || Array.isArray(item)) {
-      errors.push(`Entry ${index} should be an object.`);
+      errors.push(`${formatEntryPrefix(item, index)} should be an object.`);
       return;
     }
     errors.push(

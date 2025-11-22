@@ -5,6 +5,7 @@ import {
   readCachedGuidelines,
   writeGuidelinesCache,
 } from './guidelines-cache.js';
+import { resolveGuidelinesUrl } from '../src/utils/url.js';
 
 const DEFAULT_URL = 'journal_guidelines.json';
 const DEFAULT_RETRIES = 3;
@@ -69,6 +70,8 @@ export async function loadGuidelines(url = DEFAULT_URL, options = {}) {
     ...fetchOptions
   } = options;
 
+  const resolvedUrl = resolveGuidelinesUrl(url);
+
   if (!skipCache) {
     const cached = readCachedGuidelines(cacheVersion, cacheTtlMs);
     if (cached) {
@@ -76,7 +79,7 @@ export async function loadGuidelines(url = DEFAULT_URL, options = {}) {
     }
   }
 
-  const data = await fetchWithRetry(url, fetchOptions);
+  const data = await fetchWithRetry(resolvedUrl, fetchOptions);
   if (!Array.isArray(data)) {
     throw new Error('Unexpected guidelines response format');
   }
