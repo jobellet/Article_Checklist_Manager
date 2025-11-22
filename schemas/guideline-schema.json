@@ -26,7 +26,18 @@
       "reference_limit": { "type": "string" },
       "structure": { "type": "string" },
       "other_requirements": { "type": "string" },
-      "last_accessed": { "type": "string" }
+      "last_accessed": { "type": "string" },
+      "significance_statement_limit": { "type": "string" },
+      "article_processing_charge": { "type": "string" },
+      "mission_and_policies": {
+        "type": "object",
+        "additionalProperties": { "type": "string" }
+      },
+      "introduction_limit": { "type": "string" },
+      "discussion_limit": { "type": "string" },
+      "methods_limit": { "type": "string" },
+      "results_limit": { "type": "string" },
+      "conclusion_limit": { "type": "string" }
     },
     "additionalProperties": false
   }

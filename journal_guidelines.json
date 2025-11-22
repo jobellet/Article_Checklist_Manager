@@ -232,6 +232,13 @@
 {
   "journal": "Journal of Cognitive Neuroscience (JoCN)",
   "article_type": "Mission and Editorial Policies",
+  "title_limit": "Not applicable",
+  "abstract_limit": "Not applicable",
+  "word_limit": "Policy overview (no manuscript submission)",
+  "figure_limit": "Not applicable",
+  "reference_limit": "Not applicable",
+  "structure": "Outlines journal mission, peer-review approach, submission expectations and available article types rather than manuscript formatting.",
+  "other_requirements": "Use this entry to understand editorial scope, peer-review model, diversity guidance and submission portal information; see specific article types for submission formatting.",
   "mission_and_policies": {
     "mission": "Provide a forum for research linking information processing with brain activity, accessible to an interdisciplinary readership.",
     "methodological_rigor_and_transparency": "Studies must include adequate controls, justify sample size, report effect sizes or Bayes factors, and give precise p values.",

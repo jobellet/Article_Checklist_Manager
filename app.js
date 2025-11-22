@@ -452,15 +452,25 @@ function requiredCategories(structure) {
  */
 function expectedSectionsForGuideline(guideline) {
   const detected = requiredCategories(guideline.structure);
-  if (detected.size) return [...detected];
-  return [
-    'Abstract',
-    'Introduction',
-    'Methods',
-    'Results',
-    'Discussion',
-    'Conclusion',
-  ].filter(Boolean);
+  const sectionLimits = sectionLimitsFromGuideline(guideline);
+  const categories = detected.size
+    ? [...detected]
+    : [
+        'Abstract',
+        'Introduction',
+        'Methods',
+        'Results',
+        'Discussion',
+        'Conclusion',
+      ];
+
+  Object.keys(sectionLimits).forEach((category) => {
+    if (!categories.includes(category)) {
+      categories.push(category);
+    }
+  });
+
+  return categories.filter(Boolean);
 }
 
 function aggregateWordsByCategory(sections) {
@@ -545,11 +555,14 @@ function buildConstraintSummaries(
   const figureActual = hasFigureData
     ? Math.max(figureMentions ?? 0, figureUploads ?? 0)
     : null;
+  const byCategory = aggregateWordsByCategory(sections);
+  const expectedCategories = expectedSectionsForGuideline(guideline);
+  const expectedCategorySet = new Set(expectedCategories);
   const wordLimit = parseWordLimit(guideline.word_limit);
   const figureLimit = parseNumericLimit(guideline.figure_limit);
   const referenceLimit = parseNumericLimit(guideline.reference_limit);
 
-  return [
+  const constraints = [
     {
       key: 'words',
       label: 'Main text',
@@ -588,11 +601,44 @@ function buildConstraintSummaries(
       ),
       detail: referenceLimit
         ? hasManuscriptData && referenceCount !== null
-          ? `${referenceCount} of ${referenceLimit}`
-          : `${referenceLimit} references (limit)`
+        ? `${referenceCount} of ${referenceLimit}`
+        : `${referenceLimit} references (limit)`
         : guideline.reference_limit || 'Limit not provided',
     },
   ];
+
+  const sectionLimitEntries = Object.entries(SECTION_LIMIT_KEYS)
+    .map(([limitKey, category]) => {
+      const limitValue = guideline[limitKey];
+      const parsedLimit = parseWordLimit(limitValue);
+      if (!limitValue && !parsedLimit) return null;
+
+      const actual = hasManuscriptData ? byCategory[category] || 0 : null;
+      const missingRequired =
+        hasManuscriptData && expectedCategorySet.has(category) && actual === 0;
+      const status = missingRequired
+        ? { status: 'error', label: 'Missing section', limit: parsedLimit, actual: 0 }
+        : computeComplianceStatus(actual, parsedLimit);
+
+      const detail = missingRequired
+        ? 'Section not found in manuscript'
+        : parsedLimit
+          ? hasManuscriptData
+            ? `${actual ?? 0} / ${parsedLimit} words`
+            : `${parsedLimit} words (limit)`
+          : limitValue || 'Not specified';
+
+      return {
+        key: `section-${limitKey}`,
+        label: category,
+        limitText: limitValue || 'Not specified',
+        status,
+        detail,
+      };
+    })
+    .filter(Boolean);
+
+  return constraints.concat(sectionLimitEntries);
 }
 
 function renderJournalSummary() {
@@ -665,31 +711,14 @@ function evaluateAgainstGuideline(guideline) {
   const expectedWordMap = buildExpectedWordMap(guideline, expectedCategories);
 
   for (const [category, limit] of Object.entries(sectionLimits)) {
-    if (category === 'Significance Statement') continue;
     const actual = byCategory[category] || 0;
+    if (expectedCategories.includes(category) && actual === 0) {
+      changeList.push(`Add a ${category} section to match the guideline.`);
+      continue;
+    }
     if (actual > limit) {
       changeList.push(
         `${category} ${actual}/${limit} words (reduce by ${actual - limit})`,
-      );
-    }
-  }
-
-  const significanceLimit = sectionLimits['Significance Statement'];
-  const significanceWords = byCategory['Significance Statement'] || 0;
-  if (
-    significanceLimit &&
-    guideline.journal?.includes(
-      'Proceedings of the National Academy of Sciences',
-    ) &&
-    guideline.article_type === 'Research Report'
-  ) {
-    if (!significanceWords) {
-      changeList.push(
-        'Add a Significance Statement (required for PNAS Research Reports)',
-      );
-    } else if (significanceWords > significanceLimit) {
-      changeList.push(
-        `Significance Statement ${significanceWords}/${significanceLimit} words (reduce by ${significanceWords - significanceLimit})`,
       );
     }
   }
