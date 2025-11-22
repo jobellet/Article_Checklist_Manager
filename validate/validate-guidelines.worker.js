@@ -2,8 +2,17 @@ const STATUS_PENDING = "pending";
 const STATUS_SUCCESS = "success";
 const STATUS_ERROR = "error";
 
+function resolveUrl(path) {
+  try {
+    return new URL(path, self.location.origin).href;
+  } catch (err) {
+    return path;
+  }
+}
+
 async function fetchJson(path) {
-  const response = await fetch(path);
+  const resolved = resolveUrl(path);
+  const response = await fetch(resolved);
   if (!response.ok) {
     throw new Error(`Failed to fetch ${path} (status ${response.status})`);
   }
