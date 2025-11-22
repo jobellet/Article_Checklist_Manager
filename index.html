@@ -52,12 +52,13 @@
       <section class="panel">
         <div class="panel__header">
           <h2>Journal selection</h2>
+          <button id="export-markdown" class="secondary">Export checklist as Markdown</button>
         </div>
         <p class="muted">
           Type a keyword to narrow down the list, pick a journal option, and we will list the changes needed to fit its
           guidelines.
         </p>
-        <div class="grid grid--two align-end">
+        <div class="grid grid--three align-end">
           <label class="stack" for="journal-filter">
             <span class="label">Filter journals</span>
             <input id="journal-filter" type="text" placeholder="Start typing to filter" />
@@ -66,6 +67,9 @@
             <span class="label">Journal</span>
             <select id="journal-select"></select>
           </label>
+          <div id="journal-summary" class="journal-summary info-card muted">
+            <p>No journal selected yet.</p>
+          </div>
         </div>
         <div id="change-results" class="stack muted">
           <p>Upload a manuscript and select a journal to see required changes.</p>
