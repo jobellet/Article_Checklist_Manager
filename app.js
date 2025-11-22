@@ -34,6 +34,8 @@ const els = {
   changeResults: document.getElementById("change-results"),
 };
 
+const manuscriptWorker = typeof Worker !== "undefined" ? new Worker("parsers/manuscript.worker.js") : null;
+
 function categorizeSection(title) {
   const lowered = title.toLowerCase();
   for (const [key, category] of Object.entries(SECTION_KEYWORDS)) {
@@ -180,7 +182,7 @@ async function parseMarkdownFile(file) {
   return { sections: sections.length ? sections : [{ title: file.name, word_count: 0, category: "Other" }], textContent: text };
 }
 
-async function parseManuscriptFile(file) {
+async function parseManuscriptFileLocally(file) {
   const ext = (file.name.split(".").pop() || "").toLowerCase();
   switch (ext) {
     case "docx":
@@ -193,6 +195,42 @@ async function parseManuscriptFile(file) {
     default:
       throw new Error(`Unsupported file type: .${ext}. Upload .docx, .txt, or .md/.markdown files.`);
   }
+}
+
+function parseManuscriptFile(file) {
+  if (!manuscriptWorker) {
+    return parseManuscriptFileLocally(file);
+  }
+
+  return new Promise((resolve, reject) => {
+    const handleMessage = (event) => {
+      const { type, data, error } = event.data || {};
+      if (type === "manuscript:parsed") {
+        cleanup();
+        resolve(data);
+      } else if (type === "manuscript:error") {
+        cleanup();
+        reject(new Error(error || "Unable to parse manuscript."));
+      }
+    };
+
+    const handleError = (err) => {
+      cleanup();
+      const message = err instanceof Error ? err.message : "Unable to parse manuscript in worker.";
+      reject(new Error(message));
+    };
+
+    const cleanup = () => {
+      manuscriptWorker.removeEventListener("message", handleMessage);
+      manuscriptWorker.removeEventListener("error", handleError);
+    };
+
+    manuscriptWorker.addEventListener("message", handleMessage);
+    manuscriptWorker.addEventListener("error", handleError);
+    manuscriptWorker.postMessage({ file });
+  }).catch((err) =>
+    parseManuscriptFileLocally(file).catch((localErr) => Promise.reject(localErr || err))
+  );
 }
 
 function renderAnalysisSummary() {
