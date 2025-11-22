@@ -1,0 +1,8 @@
+{
+  "name": "article-checklist-manager",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
