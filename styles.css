@@ -124,6 +124,19 @@ button:disabled {
   box-shadow: var(--shadow);
 }
 
+.summary__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.summary__header button {
+  padding: 0.55rem 0.85rem;
+  font-size: 0.95rem;
+}
+
 h3 {
   margin: 0;
 }
