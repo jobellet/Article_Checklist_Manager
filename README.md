@@ -31,20 +31,21 @@ requirements.
   controls—these form the core user journey.
 
 ## 🧭 Async-friendly task prompts for parallel PRs
-- **Prompt 1 — Add a Web Worker for manuscript parsing**: "Create `parsers/manuscript.worker.js` to offload `.docx`, `.md`,
-  and `.txt` parsing from the main thread and wire `app.js` to call it asynchronously without changing UI markup. Touch only
-  the new worker file and the parsing invocation paths in `app.js`."
-- **Prompt 2 — Async guideline loading with graceful fallback**: "Refactor `app.js` to load `journal_guidelines.json` via
-  `fetch` with a retry/backoff helper in a new `data/guidelines-loader.js` module. Keep existing JSON shape intact and update
-  initialization to use the loader without modifying rendering code." (No overlap with Prompt 1 because it introduces a new
-  module and adjusts only the guideline bootstrap logic.)
-- **Prompt 3 — Parallel figure metadata checks**: "Add `figure-inspector.js` that validates uploaded figures (type/size) in
-  parallel using `Promise.allSettled`, and surface results in `figure-status` without altering manuscript parsing paths. Only
-  modify `figure-inspector.js` and the figure upload handler wiring in `app.js`."
-- **Prompt 4 — Non-blocking export of analysis results**: "Implement an async `exportAnalysis()` utility in
-  `export/export-utils.js` that bundles detected sections/word counts into a downloadable JSON, triggered by a new export
-  button in `index.html` with styles in `styles.css`. Avoid touching file upload or guideline-loading code." (UI-only overlap
-  in `index.html`/`styles.css`, separate from other prompts.)
-- **Prompt 5 — Background lint for guideline JSON**: "Introduce `validate_json_async.js` that runs in a Web Worker to validate
-  `journal_guidelines.json` against `schemas/guideline-schema.json` without blocking the UI; expose a status banner in
-  `index.html` and a toggle in `checklist.js` to enable/disable the background check. Do not alter parsing or figure flows."
+- **Prompt 1 — Progress-aware manuscript worker**: "Extend `parsers/manuscript.worker.js` to emit incremental progress events
+  while parsing `.docx`, `.md`, and `.txt` files and support cancellation messages. Update only the existing worker and the
+  manuscript parsing wiring in `app.js` to display progress in `manuscript-status` without changing HTML structure."
+- **Prompt 2 — Cached guideline bootstrap**: "Add `data/guidelines-cache.js` that reads/writes `localStorage` with a simple
+  version key, and have `data/guidelines-loader.js` consult the cache before fetching `journal_guidelines.json`. Include
+  coverage in `tests/guidelines-loader.test.js` for cache hit/miss/expiry behavior. No UI changes." (No overlap with Prompt 1
+  because it is isolated to the data layer.)
+- **Prompt 3 — Figure validation queue**: "Create `figures/figure-inspector.js` that validates uploaded figures (MIME/size)
+  using a concurrency-limited queue and `Promise.allSettled`, and wire `app.js` to show per-file results in `figure-status`
+  without altering manuscript parsing or guideline loading." (Touches only the new inspector module and the figure upload
+  handler.)
+- **Prompt 4 — Async export of analysis summary**: "Implement `export/export-utils.js` with a `buildAnalysisExport()` helper
+  that assembles current sections, word counts, and selected guideline details into a downloadable JSON Blob. Add an export
+  button in `index.html`, light styles in `styles.css`, and an `app.js` click handler that calls the helper without modifying
+  upload or filtering behavior." (UI overlap limited to `index.html`/`styles.css`.)
+- **Prompt 5 — Background guideline schema lint**: "Introduce `validate/validate-guidelines.worker.js` that checks
+  `journal_guidelines.json` against `schemas/guideline-schema.json` off the main thread and reports status via
+  `validate/validation-status.js`. Surface the status banner hookup in `app.js` only; do not touch figure/manuscript flows."
