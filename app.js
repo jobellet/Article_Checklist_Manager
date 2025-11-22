@@ -1,4 +1,5 @@
 import { loadGuidelines } from "./data/guidelines-loader.js";
+import { inspectFigures } from "./figures/figure-inspector.js";
 
 const SECTION_KEYWORDS = {
   introduction: "Introduction",
@@ -499,17 +500,49 @@ async function handleManuscriptUpload(event) {
   event.target.value = "";
 }
 
-function handleFigureUpload(event) {
+async function handleFigureUpload(event) {
   const files = Array.from(event.target.files || []);
-  figureFileCount = files.length;
   if (!files.length) {
+    figureFileCount = 0;
     els.figureStatus.textContent = "Figures optional; no uploads yet.";
     event.target.value = "";
     renderAnalysisSummary();
     return;
   }
-  const names = files.map((f) => f.name).join(", ");
-  els.figureStatus.textContent = `${files.length} file${files.length === 1 ? "" : "s"} uploaded: ${names}`;
+
+  els.figureStatus.textContent = "Validating figures…";
+
+  try {
+    const results = await inspectFigures(files);
+    figureFileCount = results.filter((r) => r.ok).length;
+
+    const summary = document.createElement("div");
+    const overview = document.createElement("p");
+    overview.textContent = `${figureFileCount}/${files.length} file${files.length === 1 ? "" : "s"} ready after validation.`;
+    summary.appendChild(overview);
+
+    const list = document.createElement("ul");
+    list.style.margin = "0.25rem 0 0";
+    list.style.paddingLeft = "1.2rem";
+    results.forEach((result) => {
+      const li = document.createElement("li");
+      if (result.ok) {
+        li.textContent = `${result.name}: ready`;
+      } else {
+        li.textContent = `${result.name}: ${result.issues.join("; ")}`;
+        li.className = "muted";
+      }
+      list.appendChild(li);
+    });
+
+    summary.appendChild(list);
+    els.figureStatus.innerHTML = "";
+    els.figureStatus.appendChild(summary);
+  } catch (err) {
+    figureFileCount = 0;
+    els.figureStatus.textContent = `Unable to validate figures: ${err.message}`;
+  }
+
   event.target.value = "";
   renderAnalysisSummary();
 }
