@@ -1,4 +1,5 @@
 import { loadGuidelines } from "./data/guidelines-loader.js";
+import { wireValidationStatus } from "./validate/validation-status.js";
 
 const SECTION_KEYWORDS = {
   introduction: "Introduction",
@@ -37,6 +38,10 @@ const els = {
 };
 
 const manuscriptWorker = typeof Worker !== "undefined" ? new Worker("parsers/manuscript.worker.js") : null;
+const validationWorker =
+  typeof Worker !== "undefined" ? new Worker("validate/validate-guidelines.worker.js", { type: "module" }) : null;
+
+wireValidationStatus(validationWorker);
 
 function categorizeSection(title) {
   const lowered = title.toLowerCase();
