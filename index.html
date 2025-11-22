@@ -18,8 +18,8 @@
         </p>
         <div class="actions">
           <label class="file-button">
-            <input id="manuscript-upload" type="file" accept=".docx" />
-            <span>Upload manuscript (.docx)</span>
+            <input id="manuscript-upload" type="file" accept=".docx,.txt,.md,.markdown" />
+            <span>Upload manuscript (.docx, .txt, .md)</span>
           </label>
           <label class="file-button">
             <input id="figure-upload" type="file" accept="image/*,.pdf" multiple />
@@ -35,18 +35,18 @@
             </div>
             <div class="info-card">
               <p class="muted">Figures</p>
-              <p id="figure-status">No figures uploaded yet.</p>
+              <p id="figure-status">Figures optional; no uploads yet.</p>
             </div>
           </div>
         </div>
       </div>
-      <div class="summary">
-        <p class="label">Manuscript snapshot</p>
-        <div id="analysis-summary" class="info-card">
-          <p class="muted">Upload a .docx file to extract sections and word counts.</p>
+        <div class="summary">
+          <p class="label">Manuscript snapshot</p>
+          <div id="analysis-summary" class="info-card">
+            <p class="muted">Upload a supported manuscript file to extract sections and word counts.</p>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
 
     <main class="layout">
       <section class="panel">
