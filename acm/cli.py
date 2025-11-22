@@ -175,5 +175,33 @@ def edit():
     cli_editor(Path('.'))
 
 
+@app.command("analyze-docx")
+def analyze_docx(file: Path):
+    """Analyse a .docx manuscript and report journal fit."""
+
+    if not file.exists():
+        raise typer.BadParameter(f"File not found: {file}")
+
+    from .analysis import analyze_manuscript
+
+    result = analyze_manuscript(file)
+    typer.echo("Sections:")
+    for section in result.sections:
+        typer.echo(
+            f"- {section.title} ({section.category}): {section.word_count} words"
+        )
+
+    typer.echo(f"Total words: {result.total_words}")
+    if result.accepted_journals:
+        typer.echo("Journals ready for submission:")
+        for journal in sorted(set(result.accepted_journals)):
+            typer.echo(f"- {journal}")
+    if result.required_changes:
+        typer.echo("Journals needing adjustments:")
+        for journal, changes in result.required_changes.items():
+            for change in changes:
+                typer.echo(f"- {journal}: {change}")
+
+
 if __name__ == "__main__":
     app()
