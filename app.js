@@ -17,6 +17,8 @@ let guidelines = [];
 let filteredGuidelines = [];
 let manuscriptSections = [];
 let totalWords = 0;
+let figureReferenceCount = 0;
+let figureFileCount = 0;
 let selectedGuideline = null;
 
 const els = {
@@ -38,7 +40,27 @@ function categorizeSection(title) {
   return "Other";
 }
 
-async function parseDocxSections(file) {
+function countWords(text) {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+function countFigureMentionsFromText(text) {
+  if (!text) return 0;
+  let count = 0;
+  let figureNumber = 1;
+  while (true) {
+    const regex = new RegExp(`\\b[Ff]igure\\s+${figureNumber}\\b`);
+    if (regex.test(text)) {
+      count += 1;
+      figureNumber += 1;
+    } else {
+      break;
+    }
+  }
+  return count;
+}
+
+async function parseDocxFile(file) {
   if (!window.JSZip) throw new Error("JSZip is unavailable in this browser.");
   const buffer = await file.arrayBuffer();
   const zip = await window.JSZip.loadAsync(buffer);
@@ -48,6 +70,7 @@ async function parseDocxSections(file) {
   const paragraphs = Array.from(xml.getElementsByTagName("w:p"));
 
   const sections = [];
+  const textContent = [];
   let currentTitle = null;
   let wordCount = 0;
 
@@ -62,6 +85,7 @@ async function parseDocxSections(file) {
   for (const p of paragraphs) {
     const text = getText(p);
     if (!text) continue;
+    textContent.push(text);
 
     if (isHeading(p)) {
       if (currentTitle !== null) {
@@ -83,11 +107,67 @@ async function parseDocxSections(file) {
       .map(getText)
       .filter(Boolean)
       .reduce((acc, value) => acc + value.split(/\s+/).filter(Boolean).length, 0);
-    return [{ title: "Document", word_count: total, category: "Other" }];
+    return { sections: [{ title: "Document", word_count: total, category: "Other" }], textContent: textContent.join("\n") };
   }
 
   sections.push({ title: currentTitle, word_count: wordCount, category: categorizeSection(currentTitle) });
-  return sections;
+  return { sections, textContent: textContent.join("\n") };
+}
+
+async function parsePlainTextFile(file) {
+  const text = await file.text();
+  const words = countWords(text);
+  return { sections: [{ title: file.name, word_count: words, category: "Other" }], textContent: text };
+}
+
+async function parseMarkdownFile(file) {
+  const text = await file.text();
+  const lines = text.split(/\r?\n/);
+  const sections = [];
+  let currentTitle = null;
+  let buffer = [];
+
+  const flushSection = () => {
+    if (buffer.length === 0) return;
+    const content = buffer.join(" ").trim();
+    if (!content) return;
+    const title = currentTitle || file.name;
+    sections.push({ title, word_count: countWords(content), category: categorizeSection(title) });
+    buffer = [];
+  };
+
+  lines.forEach((line) => {
+    const heading = line.match(/^(#+)\s+(.*)$/);
+    if (heading) {
+      flushSection();
+      currentTitle = heading[2].trim();
+    } else {
+      buffer.push(line);
+    }
+  });
+
+  flushSection();
+
+  if (!sections.length) {
+    return { sections: [{ title: file.name, word_count: countWords(text), category: "Other" }], textContent: text };
+  }
+
+  return { sections, textContent: text };
+}
+
+async function parseManuscriptFile(file) {
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  switch (ext) {
+    case "docx":
+      return parseDocxFile(file);
+    case "txt":
+      return parsePlainTextFile(file);
+    case "md":
+    case "markdown":
+      return parseMarkdownFile(file);
+    default:
+      throw new Error(`Unsupported file type: .${ext}. Upload .docx, .txt, or .md/.markdown files.`);
+  }
 }
 
 function renderAnalysisSummary() {
@@ -98,7 +178,7 @@ function renderAnalysisSummary() {
   if (!manuscriptSections.length) {
     const hint = document.createElement("p");
     hint.className = "muted";
-    hint.textContent = "Upload a .docx file to extract sections and word counts.";
+    hint.textContent = "Upload a supported manuscript file (.docx, .txt, .md) to extract sections and word counts.";
     summary.appendChild(hint);
     return;
   }
@@ -114,6 +194,12 @@ function renderAnalysisSummary() {
 
   stats.appendChild(sectionsStat);
   stats.appendChild(wordStat);
+  if (figureReferenceCount || figureFileCount) {
+    const figureStat = document.createElement("div");
+    const mentionsLabel = figureReferenceCount ? `${figureReferenceCount} mentioned` : "No mentions";
+    figureStat.innerHTML = `<p class="muted">Figures</p><p class="percent">${mentionsLabel}${figureFileCount ? ` · ${figureFileCount} uploaded` : " (uploads optional)"}</p>`;
+    stats.appendChild(figureStat);
+  }
   summary.appendChild(stats);
 
   const pills = document.createElement("div");
@@ -133,6 +219,15 @@ function renderAnalysisSummary() {
     });
   }
   summary.appendChild(pills);
+
+  const figureNote = document.createElement("p");
+  figureNote.className = "muted";
+  if (figureReferenceCount) {
+    figureNote.textContent = `${figureReferenceCount} figure reference${figureReferenceCount === 1 ? "" : "s"} detected via "Figure n" labels.`;
+  } else {
+    figureNote.textContent = "No figure references detected in the manuscript.";
+  }
+  summary.appendChild(figureNote);
 }
 
 function parseWordLimit(limit) {
@@ -271,22 +366,18 @@ async function handleManuscriptUpload(event) {
   const [file] = event.target.files;
   if (!file) return;
 
-  const ext = (file.name.split(".").pop() || "").toLowerCase();
-  if (ext !== "docx") {
-    els.manuscriptStatus.textContent = `Unsupported file type: ${file.name}. Please upload a .docx file.`;
-    event.target.value = "";
-    return;
-  }
-
   try {
-    manuscriptSections = await parseDocxSections(file);
+    const parsed = await parseManuscriptFile(file);
+    manuscriptSections = parsed.sections;
     totalWords = manuscriptSections.reduce((acc, section) => acc + section.word_count, 0);
+    figureReferenceCount = countFigureMentionsFromText(parsed.textContent);
     els.manuscriptStatus.textContent = `${file.name} uploaded and analyzed.`;
     renderAnalysisSummary();
     renderChangeResults();
   } catch (err) {
     manuscriptSections = [];
     totalWords = 0;
+    figureReferenceCount = 0;
     els.manuscriptStatus.textContent = `Unable to read ${file.name}: ${err.message}`;
     renderAnalysisSummary();
     renderChangeResults();
@@ -297,10 +388,17 @@ async function handleManuscriptUpload(event) {
 
 function handleFigureUpload(event) {
   const files = Array.from(event.target.files || []);
-  if (!files.length) return;
+  figureFileCount = files.length;
+  if (!files.length) {
+    els.figureStatus.textContent = "Figures optional; no uploads yet.";
+    event.target.value = "";
+    renderAnalysisSummary();
+    return;
+  }
   const names = files.map((f) => f.name).join(", ");
   els.figureStatus.textContent = `${files.length} file${files.length === 1 ? "" : "s"} uploaded: ${names}`;
   event.target.value = "";
+  renderAnalysisSummary();
 }
 
 function attachEvents() {

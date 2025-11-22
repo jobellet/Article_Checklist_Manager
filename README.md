@@ -4,16 +4,19 @@ A lightweight graphical assistant for checking manuscript readiness. Upload a ma
 submission journal, and see the exact changes required to satisfy the journal guidelines—all from the web interface.
 
 ## 🎨 What the interface does
-- **Upload manuscript (.docx):** Parse sections and word counts directly in the browser.
-- **Upload figures (optional):** Attach standalone figure files when they are not embedded in the manuscript.
+- **Upload manuscript (.docx, .txt, .md):** Parse sections and word counts directly in the browser.
+- **Upload figures (optional):** Attach standalone figure files when they are not embedded in the manuscript. The upload is
+  optional and will never block analysis.
 - **Filter & pick a journal:** Narrow the dropdown with a text filter, then select the journal/article-type entry you want to
   target.
 - **See required changes:** The interface lists every change needed (missing sections, word-limit overages, etc.) to meet the
   chosen guideline.
+- **Figure awareness:** The app counts sequential "Figure n" references inside the manuscript so you can track how many
+  figures are mentioned even if you skip uploads.
 
 ## 🚀 Getting started
 1. Clone the repository and open `index.html` in your browser (no backend required).
-2. Click **Upload manuscript (.docx)** and select your file.
+2. Click **Upload manuscript (.docx, .txt, .md)** and select your file.
 3. (Optional) Click **Upload figures** to attach separate figure files.
 4. Type in the **Filter journals** box to narrow the dropdown, then choose the target journal entry.
 5. Review the **Required changes** list and update your manuscript accordingly.
