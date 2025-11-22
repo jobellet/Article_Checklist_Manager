@@ -12,12 +12,22 @@ from typing import Iterable, List, Sequence
 import streamlit as st
 from PIL import Image, UnidentifiedImageError
 
-from .analysis import SectionSummary, parse_docx_sections
+from .analysis import (
+    SectionSummary,
+    journal_change_requests,
+    parse_docx_sections,
+)
+from .journal import Guideline, load_guidelines
 
 SUPPORTED_MANUSCRIPTS: Sequence[str] = ("docx",)
 SUPPORTED_FIGURES: Sequence[str] = ("jpg", "jpeg", "png", "svg", "pdf")
 MIN_DPI = 300
 MIN_PIXELS = 1500
+
+
+@st.cache_data
+def _load_guidelines() -> List[Guideline]:
+    return load_guidelines()
 
 
 @dataclass
@@ -166,6 +176,40 @@ def _render_figures(figures: List[FigureReport]) -> None:
     )
 
 
+def _render_journal_checks(
+    sections: List[SectionSummary], guidelines: List[Guideline]
+) -> None:
+    st.subheader("Journal guideline fit")
+
+    if not guidelines:
+        st.info("No guidelines found. Ensure `journal_guidelines.json` is available.")
+        return
+
+    journal_names = sorted({g.journal for g in guidelines})
+    journal = st.selectbox("Select a journal", journal_names)
+
+    article_types = [g.article_type for g in guidelines if g.journal == journal]
+    if not article_types:
+        st.info("No article types available for this journal.")
+        return
+    article_type = st.selectbox("Article type", article_types)
+
+    guideline = next(
+        g for g in guidelines if g.journal == journal and g.article_type == article_type
+    )
+    changes = journal_change_requests(guideline, sections)
+
+    if not changes:
+        st.success(
+            "No required changes detected for this journal and article type."
+        )
+        return
+
+    st.warning("Changes needed to fit the selected guideline:")
+    for change in changes:
+        st.write(f"- {change}")
+
+
 def launch() -> None:
     st.set_page_config(page_title="Article Checklist Manager GUI", layout="wide")
     st.title("Article Checklist Manager — GUI preview")
@@ -173,6 +217,8 @@ def launch() -> None:
         "Upload your manuscript and optional figures to trigger automated checks. "
         "Word counts per section, figure resolution, and font hints run as soon as files are added."
     )
+
+    guidelines = _load_guidelines()
 
     manuscript = st.file_uploader(
         "Manuscript (.docx)",
@@ -199,6 +245,7 @@ def launch() -> None:
 
     _render_sections(sections)
     _render_figures(figure_reports)
+    _render_journal_checks(sections, guidelines)
 
 
 def main() -> None:
