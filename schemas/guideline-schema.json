@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Journal guideline entries",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "journal",
+      "article_type",
+      "title_limit",
+      "abstract_limit",
+      "word_limit",
+      "figure_limit",
+      "reference_limit",
+      "structure",
+      "other_requirements",
+      "last_accessed"
+    ],
+    "properties": {
+      "journal": { "type": "string" },
+      "article_type": { "type": "string" },
+      "title_limit": { "type": "string" },
+      "abstract_limit": { "type": "string" },
+      "word_limit": { "type": "string" },
+      "figure_limit": { "type": "string" },
+      "reference_limit": { "type": "string" },
+      "structure": { "type": "string" },
+      "other_requirements": { "type": "string" },
+      "last_accessed": { "type": "string" }
+    },
+    "additionalProperties": false
+  }
+}
