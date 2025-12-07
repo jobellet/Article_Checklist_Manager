@@ -38,6 +38,25 @@ requirements.
 - If you adjust styles or markup, ensure the upload buttons, filter box, dropdown, and change list remain the primary
   controls—these form the core user journey.
 
+## 📱 Responsiveness and navigation
+- The hero actions stack vertically on narrow screens while keeping large tap targets for the upload controls.
+- Form grids collapse to single-column layouts under 720px wide to avoid horizontal scrolling.
+- Buttons adopt a minimum hit area of 44px to remain mobile-friendly.
+
+## ✅ Manual test cases
+Use these quick checks after changes:
+1. **Upload flow:** Open `index.html`, upload a `.docx` file, and confirm manuscript status updates and sections render.
+2. **Figure uploads:** Attach a few images/PDFs and verify the figure status reflects the upload.
+3. **Journal filtering:** Type in the filter box to narrow the dropdown, pick an entry, and confirm the change list updates.
+4. **Markdown export:** Click **Export checklist as Markdown** once a journal is selected and confirm download begins.
+5. **Mobile layout:** Resize the viewport below 720px and ensure upload buttons, filter inputs, and the journal summary stack
+   without clipping or overflow; buttons should remain easy to tap.
+
+## 🔭 Future alignment
+The incoming feature list references a richer task scheduler (routines, multi-user focus mode, ledgers, etc.) that is not yet
+present in this static checklist interface. Any future implementation should preserve the current journal-fit workflow while
+layering new data models and UI flows for the requested scheduler, routine integration, and achievement tracking.
+
 ## 🧭 Async-friendly task prompts for parallel PRs
 - **Prompt 1 — Progress-aware manuscript worker**: "Extend `parsers/manuscript.worker.js` to emit incremental progress events
   while parsing `.docx`, `.md`, and `.txt` files and support cancellation messages. Update only the existing worker and the
