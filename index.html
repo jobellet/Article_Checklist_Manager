@@ -86,8 +86,13 @@
             <button id="seed-routines" class="secondary">Sync sample routine</button>
             <button id="delete-routines" class="secondary">Remove routine</button>
             <button id="add-habit" class="secondary">Ingest habit</button>
+            <button id="export-tasks" class="secondary">Export data</button>
+            <label for="import-tasks" class="button secondary">Import data</label>
+            <input id="import-tasks" type="file" accept="application/json" hidden />
+            <button id="reset-task-data" class="secondary">Reset local data</button>
           </div>
         </div>
+        <p id="taskstore-status" class="taskstore-status" role="status"></p>
         <p class="muted">
           A lightweight wiring of the new TaskStore layer. Routine steps, habit completions, and manual tasks appear here so you
           can mark them done, open Focus Mode, or edit details through the unified modal without breaking the manuscript

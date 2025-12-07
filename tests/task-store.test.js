@@ -83,3 +83,33 @@ describe('Focus session passthrough', () => {
     assert.equal(store.getLearnedDuration('Outline'), 25);
   });
 });
+
+describe('TaskStore hydration and corruption handling', () => {
+  it('normalizes missing legacy fields when hydrating', () => {
+    const store = new TaskStore();
+    store.hydrateSnapshot({
+      tasks: [
+        { id: 'legacy-1', name: 'Legacy task' },
+        { name: 'Anonymous task', durationMinutes: 'not-a-number' },
+      ],
+    });
+    const task = store.tasks.get('legacy-1');
+    assert.equal(task.user, 'unknown');
+    assert.equal(task.durationMinutes, 30);
+    assert.equal(task.fixFlex, 'FLEX');
+    assert.equal(store.tasks.size, 2);
+  });
+
+  it('handles corrupted storage payloads gracefully', () => {
+    const store = new TaskStore();
+    const badStorage = {
+      getItem() {
+        return '{"tasks": [invalid json]';
+      },
+      setItem() {},
+    };
+    const result = store.loadFromStorage(badStorage, 'acm-taskstore');
+    assert.equal(result.ok, false);
+    assert.ok(result.message.includes('corrupted'));
+  });
+});
