@@ -83,18 +83,26 @@ Use these quick checks after changes:
     header/legend/grid remain. Toggle off to restore the full UI.
 17. **Responsive grid:** On a large monitor verify all columns are visible; on a narrow viewport ensure the timeline grid
     scrolls horizontally without breaking the column layout.
+18. **Big-screen tab:** Use the top navigation to switch to **Family Routine** and confirm the big-screen view shows, while
+    the Home content hides. Switch back to Home to restore the manuscript panels.
+19. **Time window refresh:** Adjust the big-screen window start/end inputs, click **Refresh**, and confirm vertical
+    placement updates across all users.
+20. **Blocked tasks + images:** In the big-screen view, mark a dependency to force a blocked task and map an image label to
+    that task. Verify the dashed blocked style and image-first rendering for users marked as non-readers.
 
 ## 🧑‍🤝‍🧑 Family Routine View (Big Screen)
+- **Where it lives:** Use the top navigation bar’s **Family Routine** entry to swap into the big-screen view; the main Home
+  content hides while the full-width family grid renders.
 - **What it shows:** Tomorrow morning’s routine across all users, one vertical timeline column per user. Tasks are placed
-  vertically based on scheduled time, with duration-based height cues, FIX/FLEX color bars, and dependency-blocked badges.
-- **Time window:** Defaults to 6:00–12:00 for the next day. Adjust the start/end time inputs in the Family Routine View
-  settings; values are persisted locally.
-- **Images for non-readers:** Use the **Task image labels** form to pick/type a task name, upload an image or provide a URL,
-  and save. These mappings are stored locally and used as primary labels when available.
+  vertically based on scheduled time, with duration-based height cues, FIX/FLEX markers, and dependency-blocked badges.
+- **Time window:** Defaults to 6:00–12:00 for the next day. Adjust the big-screen start/end time inputs and click
+  **Refresh**; values persist locally via the shared TaskStore window config.
+- **Images for non-readers:** Use the **Task images** form to pick/type a task name and upload an image. These mappings are
+  stored locally and reused for both the legacy family panel and the big-screen view.
 - **Reading ability:** In **User reading ability**, toggle off “Can read” for users who need image-first cards; toggle on for
-  text + image. Profiles are saved in local storage.
-- **Display mode:** The **Display mode** toggle hides other navigation and chrome to emphasize the full-width family grid on
-  a big screen. Toggle again to exit.
+  text + image. Profiles are saved in local storage and shared with the main app.
+- **Display mode:** The **Big-screen display mode** toggle hides navigation and non-family chrome to maximize visibility on
+  a kitchen TV or wall display. Toggle again to exit.
 
 ## 🔭 Future alignment
 The incoming feature list references a richer task scheduler (routines, multi-user focus mode, ledgers, etc.). The
