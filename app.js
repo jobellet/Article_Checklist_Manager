@@ -6,6 +6,11 @@ import {
 } from './parsers/section-detector.js';
 import { countWords, normalizeSearchValue } from './src/utils/text-utils.js';
 import { TaskStore, habitDefaults } from './src/utils/task-store.js';
+import {
+  deriveScheduledDate,
+  getTomorrowWindow,
+  mapTimeToRatio,
+} from './src/utils/family-view-utils.js';
 import { wireValidationStatus } from './validate/validation-status.js';
 
 /** @type {Guideline[]} */
@@ -25,6 +30,13 @@ let demoRoutine = null;
 let routineVersion = 0;
 let selectedTaskId = null;
 let taskStoreLoadError = '';
+const FAMILY_CONFIG_KEY = 'acm-family-window';
+const TASK_IMAGE_KEY = 'acm-task-images';
+const USER_PROFILE_KEY = 'acm-user-profiles';
+let familyWindowConfig = { startHour: 6, startMinute: 0, endHour: 12, endMinute: 0 };
+let taskImageMap = new Map();
+let userProfiles = new Map();
+let displayModeActive = false;
 
 const els = {
   manuscriptUpload: document.getElementById('manuscript-upload'),
@@ -50,6 +62,20 @@ const els = {
   exportTasks: document.getElementById('export-tasks'),
   importTasks: document.getElementById('import-tasks'),
   resetTaskData: document.getElementById('reset-task-data'),
+  familyPanel: document.getElementById('family-panel'),
+  familyGrid: document.getElementById('family-grid'),
+  familyLegend: document.getElementById('family-legend'),
+  familyHeaderLabel: document.getElementById('family-header-label'),
+  familyStartTime: document.getElementById('family-start-time'),
+  familyEndTime: document.getElementById('family-end-time'),
+  familyDisplayToggle: document.getElementById('family-display-toggle'),
+  familyUserList: document.getElementById('family-user-list'),
+  familyImageForm: document.getElementById('family-image-form'),
+  familyImageTask: document.getElementById('family-image-task'),
+  familyImageFile: document.getElementById('family-image-file'),
+  familyImageUrl: document.getElementById('family-image-url'),
+  familyImageList: document.getElementById('family-image-list'),
+  familyEmpty: document.getElementById('family-empty'),
   taskEditor: document.getElementById('task-editor'),
   taskEditorForm: document.getElementById('task-editor-form'),
   taskEditorClose: document.getElementById('task-editor-close'),
@@ -79,6 +105,77 @@ function getLocalStorageSafe() {
   }
 }
 
+function loadFamilyWindowConfig() {
+  const storage = getLocalStorageSafe();
+  if (!storage) return;
+  try {
+    const raw = storage.getItem(FAMILY_CONFIG_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      familyWindowConfig = {
+        startHour: Number(parsed.startHour) || 6,
+        startMinute: Number(parsed.startMinute) || 0,
+        endHour: Number(parsed.endHour) || 12,
+        endMinute: Number(parsed.endMinute) || 0,
+      };
+    }
+  } catch (err) {
+    // fallback to defaults
+  }
+}
+
+function persistFamilyWindowConfig() {
+  const storage = getLocalStorageSafe();
+  if (!storage) return;
+  storage.setItem(FAMILY_CONFIG_KEY, JSON.stringify(familyWindowConfig));
+}
+
+function loadTaskImages() {
+  const storage = getLocalStorageSafe();
+  if (!storage) return;
+  try {
+    const raw = storage.getItem(TASK_IMAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      taskImageMap = new Map(Object.entries(parsed));
+    }
+  } catch (err) {
+    taskImageMap = new Map();
+  }
+}
+
+function persistTaskImages() {
+  const storage = getLocalStorageSafe();
+  if (!storage) return;
+  const serialized = Object.fromEntries(taskImageMap.entries());
+  storage.setItem(TASK_IMAGE_KEY, JSON.stringify(serialized));
+}
+
+function loadUserProfiles() {
+  const storage = getLocalStorageSafe();
+  if (!storage) return;
+  try {
+    const raw = storage.getItem(USER_PROFILE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      userProfiles = new Map(
+        Object.entries(parsed).map(([user, profile]) => [user, { canRead: profile?.canRead !== false }]),
+      );
+    }
+  } catch (err) {
+    userProfiles = new Map();
+  }
+}
+
+function persistUserProfiles() {
+  const storage = getLocalStorageSafe();
+  if (!storage) return;
+  const serialized = Object.fromEntries(
+    Array.from(userProfiles.entries()).map(([user, profile]) => [user, { canRead: profile?.canRead !== false }]),
+  );
+  storage.setItem(USER_PROFILE_KEY, JSON.stringify(serialized));
+}
+
 function renderTaskStoreStatus(message, tone = 'info') {
   if (!els.taskStoreStatus) return;
   els.taskStoreStatus.textContent = message;
@@ -92,6 +189,26 @@ function renderTaskStoreStatus(message, tone = 'info') {
 
 function persistTaskStore() {
   taskStore.saveToStorage(getLocalStorageSafe(), TASK_STORAGE_KEY);
+}
+
+function getUserProfile(user) {
+  const existing = userProfiles.get(user);
+  if (existing) return existing;
+  const profile = { canRead: true };
+  userProfiles.set(user, profile);
+  return profile;
+}
+
+function updateUserProfile(user, updates) {
+  const profile = { ...getUserProfile(user), ...updates };
+  userProfiles.set(user, profile);
+  persistUserProfiles();
+}
+
+function getKnownUsers() {
+  const users = new Set(userProfiles.keys());
+  taskStore.tasks.forEach((task) => users.add(task.user));
+  return Array.from(users.values()).sort((a, b) => a.localeCompare(b));
 }
 
 function initializeTaskStoreFromStorage() {
@@ -1451,11 +1568,288 @@ function renderRewards() {
   els.rewardSummary.appendChild(summary);
 }
 
+function formatTimeInput(hour, minute) {
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function renderFamilyWindowInputs() {
+  if (els.familyStartTime) {
+    els.familyStartTime.value = formatTimeInput(
+      familyWindowConfig.startHour,
+      familyWindowConfig.startMinute,
+    );
+  }
+  if (els.familyEndTime) {
+    els.familyEndTime.value = formatTimeInput(familyWindowConfig.endHour, familyWindowConfig.endMinute);
+  }
+
+  if (els.familyHeaderLabel) {
+    const { start, end } = getTomorrowWindow(familyWindowConfig);
+    const formatter = new Intl.DateTimeFormat(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    els.familyHeaderLabel.textContent = `Tomorrow · ${formatter.format(start)} – ${formatter.format(end)}`;
+  }
+}
+
+function renderUserReadabilitySettings() {
+  if (!els.familyUserList) return;
+  const users = getKnownUsers();
+  els.familyUserList.innerHTML = '';
+  if (!users.length) {
+    els.familyUserList.innerHTML = '<p class="muted">No users yet. Add tasks to see profiles.</p>';
+    return;
+  }
+  users.forEach((user) => {
+    const row = document.createElement('label');
+    row.className = 'family-user-row';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = getUserProfile(user).canRead;
+    checkbox.addEventListener('change', () => {
+      updateUserProfile(user, { canRead: checkbox.checked });
+      renderFamilyView();
+    });
+    const name = document.createElement('span');
+    name.textContent = user;
+    const hint = document.createElement('span');
+    hint.className = 'muted';
+    hint.textContent = checkbox.checked ? 'Can read text' : 'Show images only';
+    row.appendChild(checkbox);
+    const stack = document.createElement('div');
+    stack.className = 'stack';
+    stack.appendChild(name);
+    stack.appendChild(hint);
+    row.appendChild(stack);
+    els.familyUserList.appendChild(row);
+  });
+}
+
+function renderTaskImageMappings() {
+  if (!els.familyImageList) return;
+  els.familyImageList.innerHTML = '';
+  if (!taskImageMap.size) {
+    els.familyImageList.innerHTML = '<p class="muted">No task images mapped yet.</p>';
+    return;
+  }
+  taskImageMap.forEach((url, name) => {
+    const item = document.createElement('div');
+    item.className = 'family-image-row';
+    const preview = document.createElement('img');
+    preview.src = url;
+    preview.alt = `${name} preview`;
+    const label = document.createElement('div');
+    label.className = 'stack';
+    label.innerHTML = `<strong>${name}</strong><span class="muted">Image label</span>`;
+    const remove = document.createElement('button');
+    remove.className = 'secondary';
+    remove.textContent = 'Remove';
+    remove.addEventListener('click', () => {
+      taskImageMap.delete(name);
+      persistTaskImages();
+      renderTaskImageMappings();
+      renderFamilyView();
+    });
+    item.appendChild(preview);
+    item.appendChild(label);
+    item.appendChild(remove);
+    els.familyImageList.appendChild(item);
+  });
+}
+
+function renderTaskNameOptions() {
+  if (!els.familyImageTask) return;
+  const names = new Set(Array.from(taskStore.tasks.values()).map((task) => task.name));
+  els.familyImageTask.innerHTML = '';
+  names.forEach((name) => {
+    const option = document.createElement('option');
+    option.value = name;
+    els.familyImageTask.appendChild(option);
+  });
+}
+
+async function handleTaskImageSubmit(event) {
+  event.preventDefault();
+  if (!els.familyImageTask) return;
+  const nameInput = document.getElementById('family-image-name');
+  const taskName = nameInput?.value?.trim();
+  if (!taskName) return;
+
+  const urlValue = els.familyImageUrl?.value?.trim();
+  const file = els.familyImageFile?.files?.[0];
+  const persistAndRender = (url) => {
+    taskImageMap.set(taskName, url);
+    persistTaskImages();
+    renderTaskImageMappings();
+    renderFamilyView();
+  };
+
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      persistAndRender(reader.result);
+    };
+    reader.readAsDataURL(file);
+  } else if (urlValue) {
+    persistAndRender(urlValue);
+  }
+
+  if (els.familyImageFile) els.familyImageFile.value = '';
+  if (els.familyImageUrl) els.familyImageUrl.value = '';
+  if (nameInput) nameInput.value = '';
+}
+
+function renderFamilyLegend() {
+  if (!els.familyLegend) return;
+  els.familyLegend.innerHTML = `
+    <div class="legend-item"><span class="pill pill--fix">FIX</span> Fixed routine</div>
+    <div class="legend-item"><span class="pill">FLEX</span> Flexible routine</div>
+    <div class="legend-item"><span class="pill pill--blocked">!</span> Blocked dependency</div>
+  `;
+}
+
+function renderFamilyView() {
+  if (!els.familyGrid) return;
+  const { start, end } = getTomorrowWindow(familyWindowConfig);
+  const scheduledTasks = [];
+  const tasks = Array.from(taskStore.tasks.values());
+
+  tasks.forEach((task, idx) => {
+    const scheduled = deriveScheduledDate(task, start, end, idx * 15);
+    if (!scheduled || scheduled < start || scheduled > end) return;
+    if (!task.routineId && task.fixFlex !== 'FIX') return;
+    const dependency = task.dependency ? taskStore.tasks.get(task.dependency) : null;
+    const blocked = dependency ? !dependency.completed : false;
+    scheduledTasks.push({ ...task, scheduled, blocked });
+  });
+
+  scheduledTasks.sort((a, b) => a.scheduled - b.scheduled);
+  const times = scheduledTasks.map((t) => t.scheduled.getTime());
+  const tMin = times.length ? new Date(Math.min(...times)) : start;
+  const tMax = times.length ? new Date(Math.max(...times)) : end;
+  const byUser = new Map();
+  scheduledTasks.forEach((task) => {
+    if (!byUser.has(task.user)) byUser.set(task.user, []);
+    byUser.get(task.user).push(task);
+  });
+
+  const users = getKnownUsers();
+  els.familyGrid.innerHTML = '';
+  if (!users.length) {
+    els.familyGrid.innerHTML = '<p class="muted">No users found. Add tasks to begin.</p>';
+    return;
+  }
+
+  users.forEach((user) => {
+    const column = document.createElement('div');
+    column.className = 'family-column';
+    const header = document.createElement('div');
+    header.className = 'family-column__header';
+    const name = document.createElement('h3');
+    name.textContent = user;
+    const literacy = document.createElement('span');
+    literacy.className = 'pill';
+    literacy.textContent = getUserProfile(user).canRead ? 'Can read' : 'Image-first';
+    header.appendChild(name);
+    header.appendChild(literacy);
+    column.appendChild(header);
+
+    const timeline = document.createElement('div');
+    timeline.className = 'family-timeline';
+    const tasksForUser = byUser.get(user) || [];
+    if (!tasksForUser.length) {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = 'No morning tasks.';
+      timeline.appendChild(empty);
+    } else {
+      const windowMinutes = Math.max(30, (tMax - tMin) / (1000 * 60));
+      tasksForUser.forEach((task) => {
+        const ratio = mapTimeToRatio(task.scheduled, tMin, tMax);
+        const card = document.createElement('div');
+        card.className = `family-task ${task.fixFlex === 'FIX' ? 'family-task--fix' : 'family-task--flex'}`;
+        if (task.blocked) card.classList.add('family-task--blocked');
+        card.style.top = `${ratio * 100}%`;
+        const durationRatio = Math.min(0.6, Math.max(task.durationMinutes / windowMinutes, 0.12));
+        card.style.minHeight = `${Math.round(durationRatio * 320)}px`;
+
+        const labelWrap = document.createElement('div');
+        labelWrap.className = 'family-task__label';
+        const mappedImage = taskImageMap.get(task.name);
+        const profile = getUserProfile(user);
+        if (mappedImage) {
+          const img = document.createElement('img');
+          img.src = mappedImage;
+          img.alt = `${task.name} image`;
+          labelWrap.appendChild(img);
+        }
+        if (profile.canRead || !mappedImage) {
+          const title = document.createElement('p');
+          title.className = 'family-task__title';
+          title.textContent = task.name;
+          labelWrap.appendChild(title);
+        }
+
+        const meta = document.createElement('div');
+        meta.className = 'family-task__meta';
+        const time = document.createElement('span');
+        time.textContent = task.scheduled.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        meta.appendChild(time);
+        const duration = document.createElement('span');
+        duration.textContent = `${task.durationMinutes}m`;
+        meta.appendChild(duration);
+        if (task.blocked) {
+          const blocked = document.createElement('span');
+          blocked.className = 'pill pill--blocked';
+          blocked.textContent = 'Blocked';
+          meta.appendChild(blocked);
+        }
+        labelWrap.appendChild(meta);
+        card.appendChild(labelWrap);
+        timeline.appendChild(card);
+      });
+    }
+    column.appendChild(timeline);
+    els.familyGrid.appendChild(column);
+  });
+}
+
+function handleFamilyWindowChange() {
+  if (els.familyStartTime?.value) {
+    const [hour, minute] = els.familyStartTime.value.split(':').map((v) => Number(v));
+    familyWindowConfig.startHour = Number.isFinite(hour) ? hour : familyWindowConfig.startHour;
+    familyWindowConfig.startMinute = Number.isFinite(minute) ? minute : familyWindowConfig.startMinute;
+  }
+  if (els.familyEndTime?.value) {
+    const [hour, minute] = els.familyEndTime.value.split(':').map((v) => Number(v));
+    familyWindowConfig.endHour = Number.isFinite(hour) ? hour : familyWindowConfig.endHour;
+    familyWindowConfig.endMinute = Number.isFinite(minute) ? minute : familyWindowConfig.endMinute;
+  }
+  persistFamilyWindowConfig();
+  renderFamilyWindowInputs();
+  renderFamilyView();
+}
+
+function toggleDisplayMode() {
+  displayModeActive = !displayModeActive;
+  document.body.classList.toggle('family-display-mode', displayModeActive);
+  if (els.familyDisplayToggle) {
+    els.familyDisplayToggle.textContent = displayModeActive ? 'Exit display mode' : 'Display mode';
+  }
+}
+
 function renderTaskSurfaces() {
   renderTodayList();
   renderPlannerList();
   renderAchievements();
   renderRewards();
+  renderFamilyWindowInputs();
+  renderUserReadabilitySettings();
+  renderTaskImageMappings();
+  renderTaskNameOptions();
+  renderFamilyLegend();
+  renderFamilyView();
 }
 
 function attachEvents() {
@@ -1500,6 +1894,22 @@ function attachEvents() {
 
   if (els.refreshAchievements) {
     els.refreshAchievements.addEventListener('click', renderTaskSurfaces);
+  }
+
+  if (els.familyStartTime) {
+    els.familyStartTime.addEventListener('change', handleFamilyWindowChange);
+  }
+
+  if (els.familyEndTime) {
+    els.familyEndTime.addEventListener('change', handleFamilyWindowChange);
+  }
+
+  if (els.familyDisplayToggle) {
+    els.familyDisplayToggle.addEventListener('click', toggleDisplayMode);
+  }
+
+  if (els.familyImageForm) {
+    els.familyImageForm.addEventListener('submit', handleTaskImageSubmit);
   }
 
   if (els.exportTasks) {
@@ -1578,6 +1988,9 @@ renderChangeResults();
 initializeGuidelines();
 attachEvents();
 initializeTaskStoreFromStorage();
+loadFamilyWindowConfig();
+loadTaskImages();
+loadUserProfiles();
 seedBaselineTasks();
 seedRoutineDemo();
 renderTaskSurfaces();

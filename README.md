@@ -75,6 +75,26 @@ Use these quick checks after changes:
     `index.html`; confirm the TaskStore status banner surfaces a reset hint instead of breaking the page.
 13. **Export/import:** Use **Export data** to download the current TaskStore snapshot, clear tasks with **Reset local data**,
     then re-import the downloaded file and verify tasks reappear in Today/Planner.
+14. **Family view columns:** Create several users (parent + kids), add routine or FIX tasks for tomorrow morning, and verify
+    each user renders as a separate column in the Family Routine View with tasks ordered by scheduled time.
+15. **Image labels & canRead:** Map images to a few task names, mark at least one user as non-reader, and confirm their
+    cards prioritize the image while reader profiles show text + time. Refresh to confirm mappings and profiles persist.
+16. **Display mode:** Toggle **Display mode** on the Family Routine View and confirm other panels/navigation hide while the
+    header/legend/grid remain. Toggle off to restore the full UI.
+17. **Responsive grid:** On a large monitor verify all columns are visible; on a narrow viewport ensure the timeline grid
+    scrolls horizontally without breaking the column layout.
+
+## 🧑‍🤝‍🧑 Family Routine View (Big Screen)
+- **What it shows:** Tomorrow morning’s routine across all users, one vertical timeline column per user. Tasks are placed
+  vertically based on scheduled time, with duration-based height cues, FIX/FLEX color bars, and dependency-blocked badges.
+- **Time window:** Defaults to 6:00–12:00 for the next day. Adjust the start/end time inputs in the Family Routine View
+  settings; values are persisted locally.
+- **Images for non-readers:** Use the **Task image labels** form to pick/type a task name, upload an image or provide a URL,
+  and save. These mappings are stored locally and used as primary labels when available.
+- **Reading ability:** In **User reading ability**, toggle off “Can read” for users who need image-first cards; toggle on for
+  text + image. Profiles are saved in local storage.
+- **Display mode:** The **Display mode** toggle hides other navigation and chrome to emphasize the full-width family grid on
+  a big screen. Toggle again to exit.
 
 ## 🔭 Future alignment
 The incoming feature list references a richer task scheduler (routines, multi-user focus mode, ledgers, etc.). The
