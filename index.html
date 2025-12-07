@@ -142,6 +142,62 @@
           </div>
         </div>
       </section>
+
+      <section class="panel family-panel" id="family-panel">
+        <div class="panel__header">
+          <div class="stack">
+            <p class="label">Family view</p>
+            <h2>Family routine view</h2>
+            <p id="family-header-label" class="muted"></p>
+          </div>
+          <div class="task-toolbar">
+            <button id="family-display-toggle" class="secondary">Display mode</button>
+          </div>
+        </div>
+        <div class="family-controls">
+          <div class="stack">
+            <div class="panel__subhead">
+              <h3>Time window</h3>
+              <p class="muted">Defaults to tomorrow morning (6am – noon). Adjust as needed.</p>
+            </div>
+            <div class="family-window-inputs">
+              <label class="stack">Start<input id="family-start-time" type="time" value="06:00" /></label>
+              <label class="stack">End<input id="family-end-time" type="time" value="12:00" /></label>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="panel__subhead">
+              <h3>User reading ability</h3>
+              <p class="muted">Switch to image-first cards for kids or non-readers.</p>
+            </div>
+            <div id="family-user-list" class="family-user-list"></div>
+          </div>
+          <div class="stack">
+            <div class="panel__subhead">
+              <h3>Task image labels</h3>
+              <p class="muted">Attach big, clear images to routine task names.</p>
+            </div>
+            <form id="family-image-form" class="family-image-form">
+              <div class="grid grid--three align-end">
+                <label class="stack">Task name
+                  <input id="family-image-name" list="family-image-task" placeholder="Routine task" required />
+                  <datalist id="family-image-task"></datalist>
+                </label>
+                <label class="stack">Upload image
+                  <input id="family-image-file" type="file" accept="image/*" />
+                </label>
+                <label class="stack">or image URL
+                  <input id="family-image-url" type="url" placeholder="https://example.com/icon.png" />
+                </label>
+              </div>
+              <button type="submit">Save label</button>
+            </form>
+            <div id="family-image-list" class="family-image-list"></div>
+          </div>
+        </div>
+        <div class="family-legend" id="family-legend"></div>
+        <div class="family-grid" id="family-grid"></div>
+      </section>
     </main>
 
     <dialog id="task-editor" class="task-editor">

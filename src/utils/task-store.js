@@ -14,11 +14,12 @@ function safeNumber(value, fallback = null) {
  * @property {string} user
  * @property {string} name
  * @property {number} durationMinutes
- * @property {number} [importance]
- * @property {number} [urgency]
- * @property {string|null} [deadline]
- * @property {string|null} [dependency]
- * @property {('FIX'|'FLEX')} [fixFlex]
+ * @property {string|null} [scheduledTime]
+  * @property {number} [importance]
+  * @property {number} [urgency]
+  * @property {string|null} [deadline]
+  * @property {string|null} [dependency]
+  * @property {('FIX'|'FLEX')} [fixFlex]
  * @property {boolean} [completed]
  * @property {boolean} [active]
  * @property {string|null} [routineId]
@@ -53,6 +54,7 @@ export class TaskStore {
       id: normalizedId,
       user: task.user || defaultUser,
       name: task.name || 'Untitled task',
+      scheduledTime: task.scheduledTime ?? null,
       durationMinutes: safeNumber(task.durationMinutes, DEFAULT_DURATION_MINUTES),
       importance: safeNumber(task.importance, null) ?? undefined,
       urgency: safeNumber(task.urgency, null) ?? undefined,
