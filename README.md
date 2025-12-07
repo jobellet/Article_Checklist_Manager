@@ -37,11 +37,17 @@ requirements.
 - `.docx` uploads are parsed client-side via [`JSZip`](https://stuk.github.io/jszip/) to extract headings and word counts.
 - If you adjust styles or markup, ensure the upload buttons, filter box, dropdown, and change list remain the primary
   controls—these form the core user journey.
+- A data-only `TaskStore` (see `src/utils/task-store.js`) now mirrors the unified task model requested in the scheduler
+  roadmap. It supports routine creation/edit/delete, habit-driven task ingestion, shared duration learning, dependency-
+  aware rescheduling, and focus-mode completion plumbing. The store is UI-agnostic for now, but is structured to plug
+  into Today View/Planner/Focus Mode without blocking current manuscript features.
 
 ## 📱 Responsiveness and navigation
 - The hero actions stack vertically on narrow screens while keeping large tap targets for the upload controls.
 - Form grids collapse to single-column layouts under 720px wide to avoid horizontal scrolling.
 - Buttons adopt a minimum hit area of 44px to remain mobile-friendly.
+- Planner/Today/Focus refinements are modeled in the `TaskStore` layer; when wired to the UI ensure mobile tap targets
+  and stacked layouts match the existing patterns.
 
 ## ✅ Manual test cases
 Use these quick checks after changes:
@@ -49,13 +55,22 @@ Use these quick checks after changes:
 2. **Figure uploads:** Attach a few images/PDFs and verify the figure status reflects the upload.
 3. **Journal filtering:** Type in the filter box to narrow the dropdown, pick an entry, and confirm the change list updates.
 4. **Markdown export:** Click **Export checklist as Markdown** once a journal is selected and confirm download begins.
-5. **Mobile layout:** Resize the viewport below 720px and ensure upload buttons, filter inputs, and the journal summary stack
-   without clipping or overflow; buttons should remain easy to tap.
+5. **Routine → Task store mapping (data-only):** Run `node --test tests/task-store.test.js` to validate routine creation,
+   updates/deletions, and duration learning across routine/non-routine tasks.
+6. **Habit completion ingestion (data-only):** Call `store.ingestHabitCompletion({ name: 'Stretch', user: 'me' })` in a
+   Node REPL (or rely on the automated test) to see a `Habit: Stretch` task marked complete with default duration and
+   importance, ready to feed achievements/ledgers.
+7. **Focus completion plumbing (data-only):** Use `store.completeFocusSession(taskId, { actualDurationMinutes: 25 })` to
+   ensure focus-driven completions update learning and task state in the same way as Today/Planner completions.
+8. **Mobile layout:** Resize the viewport below 720px and ensure upload buttons, filter inputs, and the journal summary
+   stack without clipping or overflow; buttons should remain easy to tap.
 
 ## 🔭 Future alignment
-The incoming feature list references a richer task scheduler (routines, multi-user focus mode, ledgers, etc.) that is not yet
-present in this static checklist interface. Any future implementation should preserve the current journal-fit workflow while
-layering new data models and UI flows for the requested scheduler, routine integration, and achievement tracking.
+The incoming feature list references a richer task scheduler (routines, multi-user focus mode, ledgers, etc.). The
+`TaskStore` implements the core data semantics—routine steps become tasks scoped to a user, completions update shared
+duration profiles, habits are ingested with consistent naming/defaults, focus-mode completions reuse the same plumbing, and
+reschedule attempts can block on dependencies. UI wiring (Today View, Day Planner, Family overview, unified editor) should
+preserve the current journal-fit workflow while layering these flows on top.
 
 ## 🧭 Async-friendly task prompts for parallel PRs
 - **Prompt 1 — Progress-aware manuscript worker**: "Extend `parsers/manuscript.worker.js` to emit incremental progress events
