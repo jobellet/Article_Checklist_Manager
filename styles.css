@@ -21,6 +21,7 @@ body {
     radial-gradient(circle at 100% 0%, rgba(124, 58, 237, 0.08), transparent 20%),
     var(--bg);
   color: var(--text);
+  overflow-x: hidden;
 }
 
 .hidden {
@@ -34,6 +35,7 @@ body {
   padding: 2.5rem clamp(1.5rem, 3vw, 3rem);
   border-bottom: 1px solid var(--border);
   background: linear-gradient(120deg, rgba(79, 209, 197, 0.08), rgba(124, 58, 237, 0.08));
+  align-items: start;
 }
 
 .hero__copy {
@@ -90,6 +92,7 @@ button,
   cursor: pointer;
   box-shadow: var(--shadow);
   transition: transform 120ms ease, box-shadow 120ms ease;
+  min-height: 44px;
 }
 
 button:hover,
@@ -122,6 +125,7 @@ button:disabled {
   border-radius: 1rem;
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
+  min-width: 0;
 }
 
 h3 {
@@ -193,6 +197,7 @@ textarea {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .inline-form {
@@ -534,6 +539,7 @@ button.secondary:hover {
 @media (max-width: 960px) {
   .hero {
     grid-template-columns: 1fr;
+    padding-top: 2rem;
   }
   .layout {
     grid-template-columns: 1fr;
@@ -541,5 +547,48 @@ button.secondary:hover {
   .panel__header {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .file-button,
+  button,
+  .file-button span {
+    width: 100%;
+    text-align: center;
+  }
+  .grid--three {
+    grid-template-columns: 1fr;
+  }
+  .grid--two {
+    grid-template-columns: 1fr;
+  }
+  .panel__header {
+    width: 100%;
+  }
+  .panel__header button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  body {
+    font-size: 0.98rem;
+  }
+  h1 {
+    font-size: clamp(1.8rem, 6vw, 2.1rem);
+  }
+  .hero {
+    gap: 1.25rem;
+  }
+  .panel {
+    padding: 1rem;
+  }
+  .actions {
+    gap: 0.5rem;
   }
 }
