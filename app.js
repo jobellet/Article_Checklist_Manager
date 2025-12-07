@@ -19,10 +19,12 @@ let figureFileCount = 0;
 /** @type {Guideline | null} */
 let selectedGuideline = null;
 const taskStore = new TaskStore();
+const TASK_STORAGE_KEY = taskStore.storageKey;
 const defaultTaskUser = 'you';
 let demoRoutine = null;
 let routineVersion = 0;
 let selectedTaskId = null;
+let taskStoreLoadError = '';
 
 const els = {
   manuscriptUpload: document.getElementById('manuscript-upload'),
@@ -44,6 +46,10 @@ const els = {
   deleteRoutines: document.getElementById('delete-routines'),
   addHabit: document.getElementById('add-habit'),
   refreshAchievements: document.getElementById('refresh-achievements'),
+  taskStoreStatus: document.getElementById('taskstore-status'),
+  exportTasks: document.getElementById('export-tasks'),
+  importTasks: document.getElementById('import-tasks'),
+  resetTaskData: document.getElementById('reset-task-data'),
   taskEditor: document.getElementById('task-editor'),
   taskEditorForm: document.getElementById('task-editor-form'),
   taskEditorClose: document.getElementById('task-editor-close'),
@@ -64,6 +70,51 @@ const validationWorker =
     : null;
 
 wireValidationStatus(validationWorker);
+
+function getLocalStorageSafe() {
+  try {
+    return typeof localStorage !== 'undefined' ? localStorage : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function renderTaskStoreStatus(message, tone = 'info') {
+  if (!els.taskStoreStatus) return;
+  els.taskStoreStatus.textContent = message;
+  els.taskStoreStatus.dataset.tone = tone;
+  if (!message) {
+    els.taskStoreStatus.setAttribute('aria-live', 'off');
+  } else {
+    els.taskStoreStatus.setAttribute('aria-live', 'polite');
+  }
+}
+
+function persistTaskStore() {
+  taskStore.saveToStorage(getLocalStorageSafe(), TASK_STORAGE_KEY);
+}
+
+function initializeTaskStoreFromStorage() {
+  const result = taskStore.loadFromStorage(getLocalStorageSafe(), TASK_STORAGE_KEY);
+  if (!result.ok) {
+    taskStoreLoadError = result.message || 'Task data could not be loaded.';
+    renderTaskStoreStatus(`${taskStoreLoadError} You can reset local data to continue.`, 'error');
+  } else if (result.errors?.length) {
+    renderTaskStoreStatus(result.errors[0], 'warning');
+  }
+}
+
+function resetTaskData() {
+  const storage = getLocalStorageSafe();
+  if (storage) storage.removeItem(TASK_STORAGE_KEY);
+  taskStore.reset();
+  taskStoreLoadError = '';
+  renderTaskStoreStatus('Local task data reset. Seed a routine to begin.', 'info');
+  seedBaselineTasks();
+  seedRoutineDemo();
+  renderTaskSurfaces();
+  persistTaskStore();
+}
 
 function countFigureMentionsFromText(text) {
   if (!text) return 0;
@@ -1093,6 +1144,7 @@ function seedBaselineTasks() {
       urgency: 2,
       fixFlex: 'FIX',
     });
+    persistTaskStore();
   }
 }
 
@@ -1149,12 +1201,14 @@ function seedRoutineDemo() {
   }
   routineVersion += 1;
   renderTaskSurfaces();
+  persistTaskStore();
 }
 
 function deleteRoutineDemo() {
   if (demoRoutine) {
     taskStore.deleteRoutine(demoRoutine.id, { keepTaskHistory: true });
     renderTaskSurfaces();
+    persistTaskStore();
   }
 }
 
@@ -1167,11 +1221,13 @@ function ingestHabitDemo() {
     importance: habitDefaults.importance,
   });
   renderTaskSurfaces();
+  persistTaskStore();
 }
 
 function completeTask(taskId, { actualDurationMinutes, scheduledDurationMinutes } = {}) {
   taskStore.markTaskComplete(taskId, { actualDurationMinutes, scheduledDurationMinutes });
   renderTaskSurfaces();
+  persistTaskStore();
 }
 
 function startFocusSession(taskId) {
@@ -1179,6 +1235,7 @@ function startFocusSession(taskId) {
   const observed = task?.durationMinutes || undefined;
   taskStore.completeFocusSession(taskId, { actualDurationMinutes: observed });
   renderTaskSurfaces();
+  persistTaskStore();
 }
 
 function openTaskEditor(task) {
@@ -1326,6 +1383,7 @@ function handleReschedule(task) {
     els.plannerFeedback.textContent = `Rescheduled ${task.name} to ${result.task.deadline}.`;
   }
   renderPlannerList();
+  persistTaskStore();
 }
 
 function renderPlannerList() {
@@ -1444,6 +1502,50 @@ function attachEvents() {
     els.refreshAchievements.addEventListener('click', renderTaskSurfaces);
   }
 
+  if (els.exportTasks) {
+    els.exportTasks.addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(taskStore.toJSON(), null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'taskstore-backup.json';
+      anchor.click();
+      URL.revokeObjectURL(url);
+      renderTaskStoreStatus('Exported current TaskStore snapshot.', 'info');
+    });
+  }
+
+  if (els.importTasks) {
+    els.importTasks.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        const { errors } = taskStore.hydrateSnapshot(parsed);
+        renderTaskSurfaces();
+        persistTaskStore();
+        renderTaskStoreStatus(
+          errors?.length ? errors[0] : `Imported ${taskStore.tasks.size} tasks from backup.`,
+          errors?.length ? 'warning' : 'info',
+        );
+      } catch (err) {
+        renderTaskStoreStatus('Import failed. The selected file was not valid JSON.', 'error');
+      }
+      event.target.value = '';
+    });
+  }
+
+  if (els.resetTaskData) {
+    els.resetTaskData.addEventListener('click', () => {
+      if (confirm('Reset all locally stored tasks? This cannot be undone.')) {
+        resetTaskData();
+      }
+    });
+  }
+
   if (els.taskEditorClose) {
     els.taskEditorClose.addEventListener('click', () => els.taskEditor?.close());
   }
@@ -1466,6 +1568,7 @@ function attachEvents() {
       taskStore.updateTask(selectedTaskId, updates);
       els.taskEditor?.close();
       renderTaskSurfaces();
+      persistTaskStore();
     });
   }
 }
@@ -1474,6 +1577,7 @@ renderAnalysisSummary();
 renderChangeResults();
 initializeGuidelines();
 attachEvents();
+initializeTaskStoreFromStorage();
 seedBaselineTasks();
 seedRoutineDemo();
 renderTaskSurfaces();

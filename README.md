@@ -71,6 +71,10 @@ Use these quick checks after changes:
     ensure focus-driven completions update learning and task state in the same way as Today/Planner completions.
 11. **Mobile layout:** Resize the viewport below 480px and ensure upload controls, Today/Planner/Achievement cards, and
     buttons stack without horizontal scroll while remaining tap-friendly.
+12. **Task data recovery:** Manually place an invalid JSON payload into `localStorage['acm-taskstore']` and reload
+    `index.html`; confirm the TaskStore status banner surfaces a reset hint instead of breaking the page.
+13. **Export/import:** Use **Export data** to download the current TaskStore snapshot, clear tasks with **Reset local data**,
+    then re-import the downloaded file and verify tasks reappear in Today/Planner.
 
 ## 🔭 Future alignment
 The incoming feature list references a richer task scheduler (routines, multi-user focus mode, ledgers, etc.). The

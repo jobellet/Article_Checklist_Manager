@@ -1,4 +1,11 @@
 const DEFAULT_DURATION_ALPHA = 0.35;
+const DEFAULT_DURATION_MINUTES = 30;
+const STORAGE_KEY = 'acm-taskstore';
+
+function safeNumber(value, fallback = null) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
 
 /**
  * Simple in-memory Task representation used to mock the richer scheduler layer.
@@ -29,6 +36,44 @@ export class TaskStore {
     this.routines = new Map();
     this.durationProfiles = new Map();
     this.durationAlpha = durationAlpha;
+    this.nextTaskId = 1;
+    this.storageKey = STORAGE_KEY;
+  }
+
+  /**
+   * Normalize a raw task-like object into the Task shape, filling any missing
+   * legacy fields with gentle defaults so migration is tolerant of older data.
+   * @param {Partial<Task>} task
+   * @param {{ defaultUser?: string }} [options]
+   * @returns {Task}
+   */
+  normalizeTask(task, { defaultUser = 'unknown' } = {}) {
+    const normalizedId = task.id ? String(task.id) : this.generateTaskId();
+    return {
+      id: normalizedId,
+      user: task.user || defaultUser,
+      name: task.name || 'Untitled task',
+      durationMinutes: safeNumber(task.durationMinutes, DEFAULT_DURATION_MINUTES),
+      importance: safeNumber(task.importance, null) ?? undefined,
+      urgency: safeNumber(task.urgency, null) ?? undefined,
+      deadline: task.deadline ?? null,
+      dependency: task.dependency ?? null,
+      fixFlex: task.fixFlex === 'FIX' ? 'FIX' : 'FLEX',
+      completed: Boolean(task.completed),
+      active: task.active !== false,
+      routineId: task.routineId ?? null,
+      type: task.type ?? null,
+    };
+  }
+
+  /**
+   * Reset internal collections to an empty state. Keeps the configured
+   * durationAlpha so callers can retain learning settings.
+   */
+  reset() {
+    this.tasks.clear();
+    this.routines.clear();
+    this.durationProfiles.clear();
     this.nextTaskId = 1;
   }
 
@@ -97,16 +142,7 @@ export class TaskStore {
    */
   addTask(task) {
     const id = task.id ?? this.generateTaskId();
-    const record = {
-      completed: false,
-      active: true,
-      dependency: null,
-      deadline: null,
-      fixFlex: 'FLEX',
-      type: task.type ?? null,
-      ...task,
-      id,
-    };
+    const record = this.normalizeTask({ ...task, id }, { defaultUser: task.user || 'unknown' });
     this.tasks.set(id, record);
     return record;
   }
@@ -288,6 +324,110 @@ export class TaskStore {
     });
     this.markTaskComplete(task.id, { scheduledDurationMinutes: durationMinutes });
     return task;
+  }
+
+  /**
+   * Replace the current store contents with a snapshot, normalizing legacy
+   * tasks so downstream surfaces do not crash on missing fields.
+   * @param {{ tasks?: any[]; routines?: any[]; durationProfiles?: any; nextTaskId?: number }} snapshot
+   * @returns {{ errors: string[] }}
+   */
+  hydrateSnapshot(snapshot = {}) {
+    this.reset();
+    const errors = [];
+
+    const tasks = Array.isArray(snapshot.tasks) ? snapshot.tasks : [];
+    tasks.forEach((task) => {
+      try {
+        const normalized = this.normalizeTask(task);
+        this.tasks.set(normalized.id, normalized);
+      } catch (err) {
+        errors.push(`Task could not be loaded: ${err?.message || err}`);
+      }
+    });
+
+    if (snapshot.durationProfiles && typeof snapshot.durationProfiles === 'object') {
+      Object.entries(snapshot.durationProfiles).forEach(([name, profile]) => {
+        const durationMinutes = safeNumber(profile?.durationMinutes, null);
+        const samples = safeNumber(profile?.samples, null);
+        if (durationMinutes != null && samples != null) {
+          this.durationProfiles.set(name, { durationMinutes, samples });
+        }
+      });
+    }
+
+    const routines = Array.isArray(snapshot.routines) ? snapshot.routines : [];
+    routines.forEach((routine) => {
+      if (!routine?.id) return;
+      const stepTaskIds = new Map();
+      if (routine.stepTaskIds && typeof routine.stepTaskIds === 'object') {
+        Object.entries(routine.stepTaskIds).forEach(([stepId, taskId]) => {
+          stepTaskIds.set(stepId, String(taskId));
+        });
+      }
+      this.routines.set(routine.id, {
+        id: routine.id,
+        user: routine.user || 'unknown',
+        steps: Array.isArray(routine.steps) ? routine.steps : [],
+        stepTaskIds,
+        active: routine.active !== false,
+      });
+    });
+
+    const maxTaskId = Math.max(
+      0,
+      ...Array.from(this.tasks.keys()).map((key) => Number(key)).filter((num) => Number.isFinite(num)),
+    );
+    this.nextTaskId = Math.max(maxTaskId + 1, safeNumber(snapshot.nextTaskId, 1) || 1);
+
+    return { errors };
+  }
+
+  /**
+   * Persist the current store contents to a provided storage backend.
+   */
+  saveToStorage(storage, key = this.storageKey) {
+    if (!storage) return;
+    try {
+      storage.setItem(key, JSON.stringify(this.toJSON()));
+    } catch (err) {
+      // Best-effort persistence only.
+      console.warn('Unable to persist TaskStore', err);
+    }
+  }
+
+  /**
+   * Load TaskStore state from storage with defensive JSON parsing.
+   * @returns {{ ok: boolean; errors?: string[]; message?: string }}
+   */
+  loadFromStorage(storage, key = this.storageKey) {
+    if (!storage) return { ok: true, errors: [] };
+    let raw;
+    try {
+      raw = storage.getItem(key);
+    } catch (err) {
+      return { ok: false, message: 'Task data could not be read from storage.' };
+    }
+    if (!raw) return { ok: true, errors: [] };
+    try {
+      const parsed = JSON.parse(raw);
+      const { errors } = this.hydrateSnapshot(parsed);
+      return { ok: true, errors };
+    } catch (err) {
+      return { ok: false, message: 'Stored task data is corrupted. Please reset local data.' };
+    }
+  }
+
+  toJSON() {
+    return {
+      tasks: Array.from(this.tasks.values()),
+      routines: Array.from(this.routines.values()).map((routine) => ({
+        ...routine,
+        stepTaskIds: Object.fromEntries(routine.stepTaskIds.entries()),
+      })),
+      durationProfiles: Object.fromEntries(this.durationProfiles.entries()),
+      nextTaskId: this.nextTaskId,
+    };
   }
 }
 

@@ -598,6 +598,39 @@ button.secondary:hover {
   justify-content: flex-end;
 }
 
+:focus-visible {
+  outline: 2px solid #2d6cdf;
+  outline-offset: 2px;
+}
+
+.task button:focus-visible,
+.task-toolbar .secondary:focus-visible,
+.task-editor button:focus-visible,
+.file-button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline-color: #1a4fb0;
+}
+
+.taskstore-status {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.taskstore-status[data-tone='error'] {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.taskstore-status[data-tone='warning'] {
+  background: #fffbeb;
+  color: #92400e;
+}
+
 @media (max-width: 960px) {
   .hero {
     grid-template-columns: 1fr;
