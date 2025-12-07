@@ -5,6 +5,7 @@ import {
   findCategoriesInText,
 } from './parsers/section-detector.js';
 import { countWords, normalizeSearchValue } from './src/utils/text-utils.js';
+import { TaskStore, habitDefaults } from './src/utils/task-store.js';
 import { wireValidationStatus } from './validate/validation-status.js';
 
 /** @type {Guideline[]} */
@@ -17,6 +18,11 @@ let figureReferenceCount = 0;
 let figureFileCount = 0;
 /** @type {Guideline | null} */
 let selectedGuideline = null;
+const taskStore = new TaskStore();
+const defaultTaskUser = 'you';
+let demoRoutine = null;
+let routineVersion = 0;
+let selectedTaskId = null;
 
 const els = {
   manuscriptUpload: document.getElementById('manuscript-upload'),
@@ -29,6 +35,19 @@ const els = {
   exportMarkdown: document.getElementById('export-markdown'),
   analysisSummary: document.getElementById('analysis-summary'),
   changeResults: document.getElementById('change-results'),
+  todayList: document.getElementById('today-list'),
+  plannerList: document.getElementById('planner-list'),
+  plannerFeedback: document.getElementById('planner-feedback'),
+  achievementList: document.getElementById('achievement-list'),
+  rewardSummary: document.getElementById('reward-summary'),
+  seedRoutines: document.getElementById('seed-routines'),
+  deleteRoutines: document.getElementById('delete-routines'),
+  addHabit: document.getElementById('add-habit'),
+  refreshAchievements: document.getElementById('refresh-achievements'),
+  taskEditor: document.getElementById('task-editor'),
+  taskEditorForm: document.getElementById('task-editor-form'),
+  taskEditorClose: document.getElementById('task-editor-close'),
+  taskEditorTitle: document.getElementById('task-editor-title'),
 };
 
 if (els.exportMarkdown) {
@@ -1052,6 +1071,335 @@ function handleFigureUpload(event) {
   renderChangeResults();
 }
 
+// -----------------------------
+// TaskStore wiring (Today/Planner/Achievements/Rewards)
+// -----------------------------
+
+function seedBaselineTasks() {
+  if (!taskStore.tasks.size) {
+    taskStore.addTask({
+      user: defaultTaskUser,
+      name: 'Draft discussion section',
+      durationMinutes: 45,
+      importance: 4,
+      urgency: 3,
+      deadline: new Date().toISOString().slice(0, 10),
+    });
+    taskStore.addTask({
+      user: defaultTaskUser,
+      name: 'Collect reviewer figures',
+      durationMinutes: 20,
+      importance: 3,
+      urgency: 2,
+      fixFlex: 'FIX',
+    });
+  }
+}
+
+function seedRoutineDemo() {
+  const steps =
+    routineVersion % 2 === 0
+      ? [
+          {
+            id: 'prep',
+            label: 'Routine: outline daily plan',
+            durationMinutes: 10,
+            importance: 3,
+            fixFlex: 'FIX',
+          },
+          {
+            id: 'write',
+            label: 'Routine: write 500 words',
+            durationMinutes: 30,
+            importance: 4,
+            dependency: null,
+          },
+          {
+            id: 'sync',
+            label: 'Routine: share summary',
+            durationMinutes: 10,
+            dependency: null,
+          },
+        ]
+      : [
+          {
+            id: 'prep',
+            label: 'Routine: outline sprint goals',
+            durationMinutes: 12,
+            importance: 4,
+            fixFlex: 'FIX',
+          },
+          {
+            id: 'write',
+            label: 'Routine: edit figures',
+            durationMinutes: 25,
+            importance: 3,
+            dependency: null,
+          },
+        ];
+
+  if (!demoRoutine) {
+    demoRoutine = taskStore.createRoutine({
+      id: 'demo-routine',
+      user: defaultTaskUser,
+      steps,
+    });
+  } else {
+    taskStore.updateRoutine(demoRoutine.id, { steps });
+  }
+  routineVersion += 1;
+  renderTaskSurfaces();
+}
+
+function deleteRoutineDemo() {
+  if (demoRoutine) {
+    taskStore.deleteRoutine(demoRoutine.id, { keepTaskHistory: true });
+    renderTaskSurfaces();
+  }
+}
+
+function ingestHabitDemo() {
+  const sampleName = `Stretch ${(taskStore.durationProfiles.size % 3) + 1}`;
+  taskStore.ingestHabitCompletion({
+    name: sampleName,
+    user: defaultTaskUser,
+    durationMinutes: habitDefaults.durationMinutes,
+    importance: habitDefaults.importance,
+  });
+  renderTaskSurfaces();
+}
+
+function completeTask(taskId, { actualDurationMinutes, scheduledDurationMinutes } = {}) {
+  taskStore.markTaskComplete(taskId, { actualDurationMinutes, scheduledDurationMinutes });
+  renderTaskSurfaces();
+}
+
+function startFocusSession(taskId) {
+  const task = taskStore.tasks.get(taskId);
+  const observed = task?.durationMinutes || undefined;
+  taskStore.completeFocusSession(taskId, { actualDurationMinutes: observed });
+  renderTaskSurfaces();
+}
+
+function openTaskEditor(task) {
+  if (!els.taskEditor || !els.taskEditorForm) return;
+  selectedTaskId = task.id;
+  els.taskEditorTitle.textContent = `Edit ${task.name}`;
+  const form = els.taskEditorForm;
+  form.name.value = task.name;
+  form.user.value = task.user;
+  form.durationMinutes.value = task.durationMinutes;
+  form.importance.value = task.importance ?? '';
+  form.urgency.value = task.urgency ?? '';
+  form.deadline.value = task.deadline ? task.deadline.split('T')[0] : '';
+  form.dependency.value = task.dependency ?? '';
+  form.fixFlex.value = task.fixFlex ?? 'FLEX';
+  els.taskEditor.showModal();
+}
+
+function renderBadges(task) {
+  const pillContainer = document.createElement('div');
+  pillContainer.className = 'task__controls';
+
+  if (task.fixFlex === 'FIX') {
+    const pill = document.createElement('span');
+    pill.className = 'pill pill--fix';
+    pill.textContent = 'FIXed';
+    pillContainer.appendChild(pill);
+  }
+
+  if (task.type === 'habit') {
+    const pill = document.createElement('span');
+    pill.className = 'pill pill--habit';
+    pill.textContent = 'Habit';
+    pillContainer.appendChild(pill);
+  }
+
+  if (task.routineId) {
+    const pill = document.createElement('span');
+    pill.className = 'pill';
+    pill.textContent = 'Routine step';
+    pillContainer.appendChild(pill);
+  }
+
+  if (task.dependency) {
+    const dependency = taskStore.tasks.get(task.dependency);
+    const blocked = dependency && !dependency.completed;
+    const pill = document.createElement('span');
+    pill.className = `pill ${blocked ? 'pill--blocked' : ''}`;
+    pill.textContent = blocked
+      ? `Blocked by ${dependency?.name || 'task'}`
+      : `Follows ${dependency?.name || 'dependency'}`;
+    pillContainer.appendChild(pill);
+  }
+
+  return pillContainer;
+}
+
+function renderTask(task, context = 'today') {
+  const card = document.createElement('article');
+  card.className = 'task';
+  card.dataset.taskId = task.id;
+
+  const header = document.createElement('div');
+  header.className = 'task__header';
+  const title = document.createElement('div');
+  title.className = 'task__title';
+  title.textContent = task.name;
+  header.appendChild(title);
+  header.appendChild(renderBadges(task));
+  card.appendChild(header);
+
+  const meta = document.createElement('div');
+  meta.className = 'task__controls';
+  const duration = document.createElement('span');
+  duration.className = 'pill';
+  duration.textContent = `${task.durationMinutes}m`;
+  meta.appendChild(duration);
+  if (task.deadline) {
+    const deadline = document.createElement('span');
+    deadline.className = 'pill';
+    deadline.textContent = `Due ${task.deadline}`;
+    meta.appendChild(deadline);
+  }
+  card.appendChild(meta);
+
+  const actions = document.createElement('div');
+  actions.className = 'task__actions';
+  const doneBtn = document.createElement('button');
+  doneBtn.textContent = task.completed ? 'Completed' : 'Mark done';
+  doneBtn.disabled = !!task.completed;
+  doneBtn.addEventListener('click', () => completeTask(task.id));
+  actions.appendChild(doneBtn);
+
+  const focusBtn = document.createElement('button');
+  focusBtn.textContent = 'Start focus';
+  focusBtn.disabled = !!task.completed;
+  focusBtn.addEventListener('click', () => startFocusSession(task.id));
+  actions.appendChild(focusBtn);
+
+  const editBtn = document.createElement('button');
+  editBtn.textContent = 'Edit';
+  editBtn.addEventListener('click', () => openTaskEditor(task));
+  actions.appendChild(editBtn);
+
+  if (context === 'planner') {
+    const rescheduleBtn = document.createElement('button');
+    rescheduleBtn.textContent = 'Reschedule';
+    rescheduleBtn.disabled = !!task.completed;
+    rescheduleBtn.addEventListener('click', () => handleReschedule(task));
+    actions.appendChild(rescheduleBtn);
+  }
+
+  card.appendChild(actions);
+  return card;
+}
+
+function renderTaskCollection(targetEl, tasks, context) {
+  if (!targetEl) return;
+  targetEl.innerHTML = '';
+  targetEl.classList.remove('muted');
+  if (!tasks.length) {
+    targetEl.classList.add('muted');
+    targetEl.textContent = 'No tasks available yet.';
+    return;
+  }
+  tasks.forEach((task) => targetEl.appendChild(renderTask(task, context)));
+}
+
+function renderTodayList() {
+  const tasks = taskStore
+    .getTasksForUser(defaultTaskUser)
+    .filter((task) => task.active && !task.completed);
+  renderTaskCollection(els.todayList, tasks, 'today');
+}
+
+function handleReschedule(task) {
+  if (!els.plannerFeedback) return;
+  const result = taskStore.rescheduleTask(task.id, {
+    newDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    dependencyCascade: task.dependency ? confirm('Reschedule dependency too?') : false,
+  });
+  if (result?.blocked) {
+    els.plannerFeedback.textContent = 'Reschedule blocked by dependency. Enable cascade to continue.';
+  } else {
+    els.plannerFeedback.textContent = `Rescheduled ${task.name} to ${result.task.deadline}.`;
+  }
+  renderPlannerList();
+}
+
+function renderPlannerList() {
+  const tasks = taskStore
+    .getTasksForUser(defaultTaskUser, { includeInactive: false })
+    .filter((task) => task.active);
+  renderTaskCollection(els.plannerList, tasks, 'planner');
+}
+
+function renderAchievements() {
+  if (!els.achievementList) return;
+  const tasks = Array.from(taskStore.tasks.values()).filter((task) => task.type === 'habit');
+  if (!tasks.length) {
+    els.achievementList.classList.add('muted');
+    els.achievementList.textContent = 'No completions yet.';
+    return;
+  }
+  els.achievementList.classList.remove('muted');
+  els.achievementList.innerHTML = '';
+  const byCategory = tasks.reduce((acc, task) => {
+    const category = task.name.replace(/^Habit:\s*/, 'Habit: ');
+    acc[category] = acc[category] || { total: 0, recent: 0 };
+    acc[category].total += 1;
+    if (task.completedAt && Date.now() - Date.parse(task.completedAt) < 7 * 24 * 60 * 60 * 1000) {
+      acc[category].recent += 1;
+    }
+    return acc;
+  }, {});
+
+  Object.entries(byCategory).forEach(([category, stats]) => {
+    const item = document.createElement('div');
+    item.className = 'task';
+    item.innerHTML = `<div class="task__header"><div class="task__title">${category}</div><span class="pill pill--habit">Habit</span></div>`;
+    const meta = document.createElement('p');
+    meta.className = 'muted';
+    meta.textContent = `${stats.total} total completions · ${stats.recent} this week`;
+    item.appendChild(meta);
+    els.achievementList.appendChild(item);
+  });
+}
+
+function renderRewards() {
+  if (!els.rewardSummary) return;
+  const completed = Array.from(taskStore.tasks.values()).filter((task) => task.completed);
+  if (!completed.length) {
+    els.rewardSummary.classList.add('muted');
+    els.rewardSummary.textContent = 'No activity recorded.';
+    return;
+  }
+  const today = completed.filter((task) =>
+    task.completedAt && new Date(task.completedAt).toDateString() === new Date().toDateString(),
+  );
+  const bonus = completed.filter((task) => task.importance >= 4).length;
+  const spent = completed.filter((task) => task.type === 'habit').length;
+  els.rewardSummary.classList.remove('muted');
+  els.rewardSummary.innerHTML = '';
+
+  const summary = document.createElement('div');
+  summary.className = 'task';
+  summary.innerHTML = `<div class="task__header"><div class="task__title">Ledger</div></div>`;
+  const stats = document.createElement('p');
+  stats.className = 'muted';
+  stats.textContent = `${today.length} completed today · ${bonus} bonus-worthy · ${spent} habit redemptions`;
+  summary.appendChild(stats);
+  els.rewardSummary.appendChild(summary);
+}
+
+function renderTaskSurfaces() {
+  renderTodayList();
+  renderPlannerList();
+  renderAchievements();
+  renderRewards();
+}
+
 function attachEvents() {
   if (els.journalFilter) {
     els.journalFilter.addEventListener('input', populateJournalOptions);
@@ -1076,9 +1424,56 @@ function attachEvents() {
   if (els.figureUpload) {
     els.figureUpload.addEventListener('change', handleFigureUpload);
   }
+
+  if (els.seedRoutines) {
+    els.seedRoutines.addEventListener('click', () => {
+      seedBaselineTasks();
+      seedRoutineDemo();
+    });
+  }
+
+  if (els.deleteRoutines) {
+    els.deleteRoutines.addEventListener('click', deleteRoutineDemo);
+  }
+
+  if (els.addHabit) {
+    els.addHabit.addEventListener('click', ingestHabitDemo);
+  }
+
+  if (els.refreshAchievements) {
+    els.refreshAchievements.addEventListener('click', renderTaskSurfaces);
+  }
+
+  if (els.taskEditorClose) {
+    els.taskEditorClose.addEventListener('click', () => els.taskEditor?.close());
+  }
+
+  if (els.taskEditorForm) {
+    els.taskEditorForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!selectedTaskId) return;
+      const form = event.target;
+      const updates = {
+        name: form.name.value,
+        user: form.user.value,
+        durationMinutes: Number(form.durationMinutes.value),
+        importance: form.importance.value ? Number(form.importance.value) : undefined,
+        urgency: form.urgency.value ? Number(form.urgency.value) : undefined,
+        deadline: form.deadline.value || null,
+        dependency: form.dependency.value || null,
+        fixFlex: form.fixFlex.value,
+      };
+      taskStore.updateTask(selectedTaskId, updates);
+      els.taskEditor?.close();
+      renderTaskSurfaces();
+    });
+  }
 }
 
 renderAnalysisSummary();
 renderChangeResults();
 initializeGuidelines();
 attachEvents();
+seedBaselineTasks();
+seedRoutineDemo();
+renderTaskSurfaces();

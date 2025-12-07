@@ -75,7 +75,121 @@
           <p>Upload a manuscript and select a journal to see required changes.</p>
         </div>
       </section>
+
+      <section class="panel">
+        <div class="panel__header">
+          <div class="stack">
+            <p class="label">TaskStore wiring</p>
+            <h2>Today view & planner preview</h2>
+          </div>
+          <div class="task-toolbar">
+            <button id="seed-routines" class="secondary">Sync sample routine</button>
+            <button id="delete-routines" class="secondary">Remove routine</button>
+            <button id="add-habit" class="secondary">Ingest habit</button>
+          </div>
+        </div>
+        <p class="muted">
+          A lightweight wiring of the new TaskStore layer. Routine steps, habit completions, and manual tasks appear here so you
+          can mark them done, open Focus Mode, or edit details through the unified modal without breaking the manuscript
+          workflow above.
+        </p>
+        <div class="grid grid--two">
+          <div class="stack">
+            <div class="panel__subhead">
+              <h3>Today</h3>
+              <p class="muted">Current + upcoming tasks including routine steps.</p>
+            </div>
+            <div id="today-list" class="tasks muted">No tasks scheduled for today.</div>
+          </div>
+          <div class="stack">
+            <div class="panel__subhead">
+              <h3>Planner</h3>
+              <p class="muted">Scheduled & unscheduled work with dependency cues.</p>
+            </div>
+            <div id="planner-list" class="tasks muted">Nothing planned yet.</div>
+            <div id="planner-feedback" class="muted"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__header">
+          <div class="stack">
+            <p class="label">Achievements & rewards</p>
+            <h2>Habit categories and ledger rollups</h2>
+          </div>
+          <button id="refresh-achievements" class="secondary">Refresh totals</button>
+        </div>
+        <div class="grid grid--two">
+          <div class="stack">
+            <div class="panel__subhead">
+              <h3>Category achievements</h3>
+              <p class="muted">Habit-derived categories roll into recent activity.</p>
+            </div>
+            <div id="achievement-list" class="tasks muted">No completions yet.</div>
+          </div>
+          <div class="stack">
+            <div class="panel__subhead">
+              <h3>Rewards ledger</h3>
+              <p class="muted">Completed-today and bonus/spent totals mirror TaskStore data.</p>
+            </div>
+            <div id="reward-summary" class="tasks muted">No activity recorded.</div>
+          </div>
+        </div>
+      </section>
     </main>
+
+    <dialog id="task-editor" class="task-editor">
+      <form id="task-editor-form" method="dialog" class="task-editor__content">
+        <header class="task-editor__header">
+          <div>
+            <p class="label">Unified task editor</p>
+            <h3 id="task-editor-title">Edit task</h3>
+          </div>
+          <button type="button" id="task-editor-close" class="secondary">Close</button>
+        </header>
+        <div class="grid grid--two">
+          <label class="stack">
+            <span class="label">Name</span>
+            <input name="name" required />
+          </label>
+          <label class="stack">
+            <span class="label">User</span>
+            <input name="user" required />
+          </label>
+          <label class="stack">
+            <span class="label">Duration (minutes)</span>
+            <input name="durationMinutes" type="number" min="1" step="1" required />
+          </label>
+          <label class="stack">
+            <span class="label">Importance</span>
+            <input name="importance" type="number" min="0" max="5" step="1" />
+          </label>
+          <label class="stack">
+            <span class="label">Urgency</span>
+            <input name="urgency" type="number" min="0" max="5" step="1" />
+          </label>
+          <label class="stack">
+            <span class="label">Deadline</span>
+            <input name="deadline" type="date" />
+          </label>
+          <label class="stack">
+            <span class="label">Dependency (task ID)</span>
+            <input name="dependency" />
+          </label>
+          <label class="stack">
+            <span class="label">Fix/Flex</span>
+            <select name="fixFlex">
+              <option value="FIX">FIX</option>
+              <option value="FLEX">FLEX</option>
+            </select>
+          </label>
+        </div>
+        <footer class="task-editor__footer">
+          <button type="submit">Save task</button>
+        </footer>
+      </form>
+    </dialog>
 
     <script type="module" src="app.js"></script>
   </body>
