@@ -6,8 +6,23 @@
     <title>Article Checklist Manager</title>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="family.css" />
   </head>
   <body>
+    <nav class="nav-bar non-family-controls">
+      <ul class="nav-list">
+        <li>
+          <a href="#" data-tool="home" class="nav-link active"><i class="fas fa-home"></i> Home</a>
+        </li>
+        <li>
+          <a href="#" data-tool="family" data-i18n="nav-family" class="nav-link">
+            <i class="fas fa-users"></i> Family Routine
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <div id="home" class="tool-section non-family-controls">
     <header class="hero">
       <div class="hero__copy">
         <p class="eyebrow">Article Checklist Manager</p>
@@ -199,6 +214,61 @@
         <div class="family-grid" id="family-grid"></div>
       </section>
     </main>
+    </div>
+
+    <main id="family-tool" class="tool-section" style="display: none;">
+      <section id="family" class="tool-section" style="display: none;">
+        <h2 data-i18n="family-heading">Family Routine (Big Screen)</h2>
+        <p data-i18n="family-description">
+          This view shows, for each family member, what they should be doing during the current routine window.
+        </p>
+
+        <div id="family-controls" class="family-controls">
+          <div class="family-window-settings">
+            <label>
+              <span data-i18n="family-start-time-label">Window start:</span>
+              <input type="time" id="family-window-start" />
+            </label>
+            <label>
+              <span data-i18n="family-end-time-label">Window end:</span>
+              <input type="time" id="family-window-end" />
+            </label>
+            <button id="family-refresh" class="btn btn-primary" data-i18n="family-refresh">Refresh</button>
+          </div>
+
+          <div class="family-display-mode">
+            <label>
+              <input type="checkbox" id="family-display-mode-toggle" />
+              <span data-i18n="family-display-mode-label">Big-screen display mode</span>
+            </label>
+          </div>
+
+          <div id="family-user-prefs" class="family-user-prefs"></div>
+
+          <div id="family-task-image-mapping" class="family-task-image-mapping">
+            <h3 data-i18n="family-image-mapping-heading">Task images</h3>
+            <p data-i18n="family-image-mapping-description">
+              Link task names to images so non-readers can see what to do.
+            </p>
+            <label>
+              <span data-i18n="family-task-name-label">Task name:</span>
+              <input type="text" id="family-task-name-input" list="family-task-name-list" />
+              <datalist id="family-task-name-list"></datalist>
+            </label>
+            <label>
+              <span data-i18n="family-task-image-label">Image:</span>
+              <input type="file" id="family-task-image-input" accept="image/*" />
+            </label>
+            <button id="family-save-image-mapping" class="btn btn-secondary" data-i18n="family-save-image-mapping">
+              Save mapping
+            </button>
+            <div id="family-image-mapping-list"></div>
+          </div>
+        </div>
+
+        <div id="family-view-container" class="family-view-container"></div>
+      </section>
+    </main>
 
     <dialog id="task-editor" class="task-editor">
       <form id="task-editor-form" method="dialog" class="task-editor__content">
@@ -252,6 +322,7 @@
       </form>
     </dialog>
 
+    <script type="module" src="family.js" defer></script>
     <script type="module" src="app.js"></script>
   </body>
 </html>

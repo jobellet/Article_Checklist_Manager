@@ -1993,4 +1993,27 @@ loadTaskImages();
 loadUserProfiles();
 seedBaselineTasks();
 seedRoutineDemo();
+
+// Expose a lightweight bridge so the standalone family.js module can reuse
+// the existing TaskStore instance, profiles, and scheduling helpers without
+// duplicating state.
+window.acmFamilyBridge = {
+  taskStore,
+  getKnownUsers,
+  getUserProfile,
+  updateUserProfile,
+  deriveScheduledDate,
+  getTomorrowWindow,
+  mapTimeToRatio,
+  get familyWindowConfig() {
+    return familyWindowConfig;
+  },
+  setFamilyWindowConfig(update) {
+    familyWindowConfig = { ...familyWindowConfig, ...update };
+    persistFamilyWindowConfig();
+  },
+  persistTaskImages,
+  taskImageMap,
+};
+document.dispatchEvent(new Event('acm-family-bridge-ready'));
 renderTaskSurfaces();
