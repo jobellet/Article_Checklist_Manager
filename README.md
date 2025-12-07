@@ -39,8 +39,8 @@ requirements.
   controls—these form the core user journey.
 - A data-only `TaskStore` (see `src/utils/task-store.js`) now mirrors the unified task model requested in the scheduler
   roadmap. It supports routine creation/edit/delete, habit-driven task ingestion, shared duration learning, dependency-
-  aware rescheduling, and focus-mode completion plumbing. The store is UI-agnostic for now, but is structured to plug
-  into Today View/Planner/Focus Mode without blocking current manuscript features.
+  aware rescheduling, and focus-mode completion plumbing. It now powers lightweight Today/Planner/Achievement/Reward
+  previews in the UI without blocking manuscript features.
 
 ## 📱 Responsiveness and navigation
 - The hero actions stack vertically on narrow screens while keeping large tap targets for the upload controls.
@@ -55,15 +55,22 @@ Use these quick checks after changes:
 2. **Figure uploads:** Attach a few images/PDFs and verify the figure status reflects the upload.
 3. **Journal filtering:** Type in the filter box to narrow the dropdown, pick an entry, and confirm the change list updates.
 4. **Markdown export:** Click **Export checklist as Markdown** once a journal is selected and confirm download begins.
-5. **Routine → Task store mapping (data-only):** Run `node --test tests/task-store.test.js` to validate routine creation,
-   updates/deletions, and duration learning across routine/non-routine tasks.
-6. **Habit completion ingestion (data-only):** Call `store.ingestHabitCompletion({ name: 'Stretch', user: 'me' })` in a
-   Node REPL (or rely on the automated test) to see a `Habit: Stretch` task marked complete with default duration and
-   importance, ready to feed achievements/ledgers.
-7. **Focus completion plumbing (data-only):** Use `store.completeFocusSession(taskId, { actualDurationMinutes: 25 })` to
-   ensure focus-driven completions update learning and task state in the same way as Today/Planner completions.
-8. **Mobile layout:** Resize the viewport below 720px and ensure upload buttons, filter inputs, and the journal summary
-   stack without clipping or overflow; buttons should remain easy to tap.
+5. **Routine → Task store mapping (UI):** Click **Sync sample routine** in the Today/Planner panel, verify routine steps
+   appear in both lists, toggle the button again to see routine edits propagate, and remove the routine to ensure tasks are
+   marked inactive but history remains in achievements/rewards.
+6. **Unified Task Editor:** Open the editor from a Today/Planner card, edit duration or importance, save, and confirm the
+   change reflects across all lists and the planner reschedule message updates appropriately.
+7. **Planner → Focus path:** From the Planner, click **Start focus** on a task and verify it marks complete, updates the
+   learned duration, and updates the ledger/achievement totals.
+8. **Habit → achievements:** Click **Ingest habit** to create a Habit-derived completion and verify Achievements updates
+   the Habit: <name> category totals and that Rewards counts the completion as a spent/bonus event.
+9. **Manual habit defaults:** In a Node REPL call
+   `store.ingestHabitCompletion({ name: 'Stretch', user: 'me' })` (or rely on `node --test tests/task-store.test.js`) to
+   see a `Habit: Stretch` task marked complete with default duration/importance, ready to feed achievements/ledgers.
+10. **Focus completion plumbing (data-only):** Use `store.completeFocusSession(taskId, { actualDurationMinutes: 25 })` to
+    ensure focus-driven completions update learning and task state in the same way as Today/Planner completions.
+11. **Mobile layout:** Resize the viewport below 480px and ensure upload controls, Today/Planner/Achievement cards, and
+    buttons stack without horizontal scroll while remaining tap-friendly.
 
 ## 🔭 Future alignment
 The incoming feature list references a richer task scheduler (routines, multi-user focus mode, ledgers, etc.). The
