@@ -335,14 +335,27 @@ export class TaskStore {
    * @returns {{ errors: string[] }}
    */
   hydrateSnapshot(snapshot = {}) {
-    this.reset();
+    // Validate snapshot structure before resetting to avoid data loss on bad imports
+    const hasStructure =
+      Array.isArray(snapshot.tasks) ||
+      Array.isArray(snapshot.routines) ||
+      (snapshot.durationProfiles && typeof snapshot.durationProfiles === 'object');
+
+    if (!hasStructure) {
+      return { errors: ['Invalid snapshot: missing tasks, routines, or durationProfiles'] };
+    }
+
+    // Build new state in temporary variables
+    const newTasks = new Map();
+    const newRoutines = new Map();
+    const newDurationProfiles = new Map();
     const errors = [];
 
     const tasks = Array.isArray(snapshot.tasks) ? snapshot.tasks : [];
     tasks.forEach((task) => {
       try {
         const normalized = this.normalizeTask(task);
-        this.tasks.set(normalized.id, normalized);
+        newTasks.set(normalized.id, normalized);
       } catch (err) {
         errors.push(`Task could not be loaded: ${err?.message || err}`);
       }
@@ -353,7 +366,7 @@ export class TaskStore {
         const durationMinutes = safeNumber(profile?.durationMinutes, null);
         const samples = safeNumber(profile?.samples, null);
         if (durationMinutes != null && samples != null) {
-          this.durationProfiles.set(name, { durationMinutes, samples });
+          newDurationProfiles.set(name, { durationMinutes, samples });
         }
       });
     }
@@ -367,7 +380,7 @@ export class TaskStore {
           stepTaskIds.set(stepId, String(taskId));
         });
       }
-      this.routines.set(routine.id, {
+      newRoutines.set(routine.id, {
         id: routine.id,
         user: routine.user || 'unknown',
         steps: Array.isArray(routine.steps) ? routine.steps : [],
@@ -376,9 +389,17 @@ export class TaskStore {
       });
     });
 
+    // If we're here, we have parsed the data successfully. Now apply it.
+    this.reset();
+    this.tasks = newTasks;
+    this.routines = newRoutines;
+    this.durationProfiles = newDurationProfiles;
+
     const maxTaskId = Math.max(
       0,
-      ...Array.from(this.tasks.keys()).map((key) => Number(key)).filter((num) => Number.isFinite(num)),
+      ...Array.from(this.tasks.keys())
+        .map((key) => Number(key))
+        .filter((num) => Number.isFinite(num)),
     );
     this.nextTaskId = Math.max(maxTaskId + 1, safeNumber(snapshot.nextTaskId, 1) || 1);
 
