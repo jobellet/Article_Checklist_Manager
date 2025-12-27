@@ -6,7 +6,6 @@ import pytest
 
 
 def test_save_and_load_roundtrip(tmp_path: Path) -> None:
-    pytest.skip("TODO: implement drive.save/load")
     project = Checklist()
     project.add_task(TaskNode(item="Task"))
     file = tmp_path / "checklist.yaml"
