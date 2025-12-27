@@ -9,11 +9,13 @@ from .domain import Checklist
 
 def save(project: Checklist, path: Path) -> None:
     """Save ``project`` to ``path`` in YAML format."""
-    raise NotImplementedError
+    with path.open("w", encoding="utf-8") as f:
+        f.write(project.to_yaml())
 
 
 def load(path: Path) -> Checklist:
     """Return a :class:`Checklist` loaded from ``path``."""
-    raise NotImplementedError
+    with path.open("r", encoding="utf-8") as f:
+        return Checklist.from_yaml(f.read())
 
 __all__ = ["save", "load"]
